@@ -1,0 +1,38 @@
+/**
+ ******************************************************************************
+ * @file    main.c
+ * @brief   Exercise 3 - USART1 only test (repeated output)
+ ******************************************************************************
+ */
+
+#include <stdint.h>
+#include <stddef.h>
+#include "serial.h"
+#include "stm32f303xc.h"
+
+void on_tx_complete(uint32_t bytes_sent)
+{
+    (void)bytes_sent;
+}
+
+void USART1_IRQHandler(void)
+{
+    SerialReceiveHandler(&USART1_PORT);
+}
+
+void USART2_IRQHandler(void)
+{
+    SerialReceiveHandler(&USART2_PORT);
+}
+
+int main(void)
+{
+    SerialInitialise(BAUD_115200, &USART1_PORT, &on_tx_complete, NULL);
+
+    for (;;) {
+        SerialOutputString((uint8_t*)"Hello from USART1!\r\n", &USART1_PORT);
+
+        /* Simple delay */
+        for (volatile uint32_t i = 0; i < 0x8ffff; i++) {}
+    }
+}

@@ -78,9 +78,38 @@ struct _SerialPort {
 
 /* -------------------------------------------------------------------------
  * Port instances
- *   USART1 -> PC10 (TX) / PC11 (RX), AF7
+ *   USART1 -> PA9 (TX) / PA10 (RX), AF7
+ *             These pins are wired to the on-board ST-Link on the STM32F3
+ *             Discovery board, so output appears in screen/terminal on PC
+ *             via the USB cable - no USB-serial adapter needed.
  *   USART2 -> PA2  (TX) / PA3  (RX), AF7
  * ---------------------------------------------------------------------- */
+/*
+ * GPIO MODER register: 2 bits per pin, bits [2n+1:2n] for pin n
+ *   00 = input, 01 = output, 10 = alternate function, 11 = analog
+ *
+ * PA9  -> MODER bits 19:18 = 10 -> 0x00080000
+ * PA10 -> MODER bits 21:20 = 10 -> 0x00200000
+ * PA9+PA10 combined        = 10 -> 0x00280000
+ *
+ * PA2  -> MODER bits  5:4  = 10 -> 0x00000020
+ * PA3  -> MODER bits  7:6  = 10 -> 0x00000080
+ * PA2+PA3  combined        = 10 -> 0x000000A0
+ *
+ * OSPEEDR: same bit positions, 11 = high speed
+ * PA9+PA10: 0x003C0000
+ * PA2+PA3:  0x000000F0
+ *
+ * AFR[1] (pins 8-15): 4 bits per pin
+ * PA9  -> AFR[1] bits  7:4  = 0111 (AF7) -> 0x00000070
+ * PA10 -> AFR[1] bits 11:8  = 0111 (AF7) -> 0x00000700
+ * PA9+PA10 combined                       -> 0x00000770
+ *
+ * AFR[0] (pins 0-7): 4 bits per pin
+ * PA2  -> AFR[0] bits 11:8  = 0111 (AF7) -> 0x00000700
+ * PA3  -> AFR[0] bits 15:12 = 0111 (AF7) -> 0x00007000
+ * PA2+PA3 combined                        -> 0x00007700
+ */
 SerialPort USART1_PORT = {
     .UART                          = USART1,
     .GPIO                          = GPIOC,
@@ -88,10 +117,10 @@ SerialPort USART1_PORT = {
     .MaskAPB1ENR                   = 0x00,
     .MaskAHBENR                    = RCC_AHBENR_GPIOCEN,
     .SerialPinModeValue            = 0xA00,      /* PC10+PC11 alternate function */
-    .SerialPinSpeedValue           = 0xF00,
+    .SerialPinSpeedValue           = 0xF00,      /* PC10+PC11 high speed         */
     .SerialPinAlternatePinValueLow = 0x770000,   /* AF7 on PC10, PC11 (AFR[0])  */
     .SerialPinAlternatePinValueHigh= 0x00,
-    .IRQn                          = USART1_IRQn,
+    .IRQn                          = USART1_IRQn, /* shared with EXTI25 - handler must be USART1_EXTI25_IRQHandler */
     .tx_complete                   = NULL,
     .rx_complete                   = NULL,
     .rx_state                      = RX_WAIT_START,
@@ -108,11 +137,11 @@ SerialPort USART2_PORT = {
     .MaskAPB2ENR                   = 0x00,
     .MaskAPB1ENR                   = RCC_APB1ENR_USART2EN,
     .MaskAHBENR                    = RCC_AHBENR_GPIOAEN,
-    .SerialPinModeValue            = 0xA0,       /* PA2+PA3 alternate function   */
-    .SerialPinSpeedValue           = 0xF0,
-    .SerialPinAlternatePinValueLow = 0x7700,     /* AF7 on PA2, PA3 (AFR[0])    */
+    .SerialPinModeValue            = 0x000000A0, /* PA2+PA3 alternate function   */
+    .SerialPinSpeedValue           = 0x000000F0, /* PA2+PA3 high speed           */
+    .SerialPinAlternatePinValueLow = 0x00007700, /* AF7 on PA2, PA3 (AFR[0])    */
     .SerialPinAlternatePinValueHigh= 0x00,
-    .IRQn                          = USART2_IRQn,
+    .IRQn                          = USART2_IRQn, /* shared with EXTI26 - handler must be USART2_EXTI26_IRQHandler */
     .tx_complete                   = NULL,
     .rx_complete                   = NULL,
     .rx_state                      = RX_WAIT_START,
@@ -148,27 +177,32 @@ void SerialInitialise(uint32_t baudRate,
     RCC->APB2ENR |= serial_port->MaskAPB2ENR;
 
     /* Configure GPIO pins -------------------------------------------------- */
-    serial_port->GPIO->MODER    = serial_port->SerialPinModeValue;
-    serial_port->GPIO->OSPEEDR  = serial_port->SerialPinSpeedValue;
+    /* NOTE: USART1 uses GPIOC (PC10/PC11) which is safe to assign directly.
+     * USART2 uses GPIOA (PA2/PA3) so we use |= to avoid touching PA13/PA14
+     * which are the SWD debug pins also on GPIOA. */
+    serial_port->GPIO->MODER   |= serial_port->SerialPinModeValue;
+    serial_port->GPIO->OSPEEDR |= serial_port->SerialPinSpeedValue;
     serial_port->GPIO->AFR[0]  |= serial_port->SerialPinAlternatePinValueLow;
     serial_port->GPIO->AFR[1]  |= serial_port->SerialPinAlternatePinValueHigh;
 
+    /* Disable UART before configuring ------------------------------------- */
+    serial_port->UART->CR1 = 0x00;
+
     /* Configure baud rate -------------------------------------------------- */
-    uint16_t *baud_rate_config = (uint16_t*)&serial_port->UART->BRR;
     switch (baudRate) {
-        case BAUD_9600:   *baud_rate_config = 0x341; break; /* 8MHz / 9600   */
-        case BAUD_19200:  *baud_rate_config = 0x1A1; break;
-        case BAUD_38400:  *baud_rate_config = 0xD0;  break;
-        case BAUD_57600:  *baud_rate_config = 0x8B;  break;
-        case BAUD_115200: *baud_rate_config = 0x46;  break; /* 8MHz / 115200 */
-        default:          *baud_rate_config = 0x46;  break;
+        case BAUD_9600:   serial_port->UART->BRR = 0x341; break;
+        case BAUD_19200:  serial_port->UART->BRR = 0x1A1; break;
+        case BAUD_38400:  serial_port->UART->BRR = 0xD0;  break;
+        case BAUD_57600:  serial_port->UART->BRR = 0x8B;  break;
+        case BAUD_115200: serial_port->UART->BRR = 0x46;  break;
+        default:          serial_port->UART->BRR = 0x46;  break;
     }
 
-    /* Enable UART with TX, RX, and RXNE interrupt -------------------------- */
-    serial_port->UART->CR1 |= USART_CR1_TE     /* transmit enable  */
-                             | USART_CR1_RE     /* receive enable   */
-                             | USART_CR1_RXNEIE /* RXNE interrupt   */
-                             | USART_CR1_UE;    /* UART enable      */
+    /* Enable UART with TX, RX, RXNE interrupt, and UE ---------------------- */
+    serial_port->UART->CR1 = USART_CR1_TE
+                           | USART_CR1_RE
+                           | USART_CR1_RXNEIE
+                           | USART_CR1_UE;
 
     /* Enable the interrupt in the NVIC ------------------------------------- */
     NVIC_SetPriority(serial_port->IRQn, 1);
@@ -180,8 +214,14 @@ void SerialInitialise(uint32_t baudRate,
  * ====================================================================== */
 void SerialOutputChar(uint8_t data, SerialPort *serial_port)
 {
-    while ((serial_port->UART->ISR & USART_ISR_TXE) == 0) {}
-    serial_port->UART->TDR = data;
+    /* Timeout prevents infinite loop if UART is not ready */
+    uint32_t timeout = 0xFFFFFF;
+    while (((serial_port->UART->ISR & USART_ISR_TXE) == 0) && (timeout > 0)) {
+        timeout--;
+    }
+    if (timeout > 0) {
+        serial_port->UART->TDR = data;
+    }
 }
 
 /* =========================================================================
@@ -238,6 +278,24 @@ void sendMsg(void *data, uint8_t size, uint8_t msg_type, SerialPort *serial_port
 }
 
 /* =========================================================================
+ * SerialResetReceiver  (reset the RX state machine)
+ * ====================================================================== */
+void SerialResetReceiver(SerialPort *serial_port)
+{
+    serial_port->rx_state          = RX_WAIT_START;
+    serial_port->rx_bytes_received = 0;
+    serial_port->rx_checksum_calc  = 0;
+    serial_port->rx_expected_size  = 0;
+    serial_port->rx_msg_type       = 0;
+}
+
+/* Debug counters - track what the state machine is seeing */
+volatile uint32_t dbg_start_bytes_seen   = 0;
+volatile uint32_t dbg_total_bytes_seen   = 0;
+volatile uint32_t dbg_checksum_failures  = 0;
+volatile uint32_t dbg_packets_completed  = 0;
+
+/* =========================================================================
  * SerialReceiveHandler  (call this from the USARTx_IRQHandler)
  *
  * State machine processes one byte per interrupt.
@@ -252,11 +310,14 @@ void SerialReceiveHandler(SerialPort *serial_port)
     /* Reading RDR automatically clears the RXNE flag */
     uint8_t byte = (uint8_t)(serial_port->UART->RDR & 0xFF);
 
+    dbg_total_bytes_seen++;
+
     switch (serial_port->rx_state) {
 
         /* ----------------------------------------------------------------- */
         case RX_WAIT_START:
             if (byte == SERIAL_START_BYTE) {
+                dbg_start_bytes_seen++;
                 serial_port->rx_state         = RX_WAIT_SIZE;
                 serial_port->rx_checksum_calc = 0;
                 serial_port->rx_bytes_received= 0;
@@ -301,6 +362,7 @@ void SerialReceiveHandler(SerialPort *serial_port)
                 serial_port->rx_state = RX_WAIT_STOP;
             } else {
                 /* Bad checksum - discard packet */
+                dbg_checksum_failures++;
                 serial_port->rx_state = RX_WAIT_START;
             }
             break;
@@ -308,6 +370,7 @@ void SerialReceiveHandler(SerialPort *serial_port)
         /* ----------------------------------------------------------------- */
         case RX_WAIT_STOP:
             if (byte == SERIAL_STOP_BYTE) {
+                dbg_packets_completed++;
                 /* Complete, valid packet received - fire callback */
                 if (serial_port->rx_complete != NULL) {
                     serial_port->rx_complete(serial_port->rx_buffer,

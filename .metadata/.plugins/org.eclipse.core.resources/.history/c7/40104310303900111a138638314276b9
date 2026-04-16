@@ -1,0 +1,135 @@
+/**
+ ******************************************************************************
+ * @file    main.c
+ * @brief   Exercise 3 - Serial Interface test using USART1 loopback
+ *
+ * Hardware setup:
+ *   - USB cable from STM32F3 Discovery board to Mac (for screen output)
+ *   - Jumper wire between PC10 (USART1 TX) and PC11 (USART1 RX)
+ *
+ * USART1 (PC10/PC11) handles both debug output to screen AND the loopback
+ * test — the jumper wire sends TX straight back into RX.
+ *
+ * To view output: screen /dev/tty.usbmodem103 115200
+ ******************************************************************************
+ */
+
+#include <stdint.h>
+#include <stddef.h>
+#include <string.h>
+#include <stdio.h>
+#include "serial.h"
+#include "stm32f303xc.h"
+
+#define MSG_TYPE_SENSOR  0x01
+
+typedef struct {
+    uint16_t x;
+    uint16_t y;
+    uint16_t z;
+    uint32_t timestamp_ms;
+} SensorData;
+
+static volatile uint8_t  g_new_data_available  = 0;
+static SensorData        g_last_sensor_data     = {0};
+static volatile uint8_t  g_loopback_test_passed = 0;
+static volatile uint32_t g_packets_received     = 0;
+static volatile uint32_t g_last_rx_num_bytes    = 0;
+static volatile uint8_t  g_wrong_size_received  = 0;
+
+static const SensorData TX_SENSOR_DATA = {
+    .x            = 100,
+    .y            = 200,
+    .z            = 300,
+    .timestamp_ms = 12345
+};
+
+void on_tx_complete(uint32_t bytes_sent)
+{
+    (void)bytes_sent;
+}
+
+void on_rx_complete(uint8_t *data, uint32_t num_bytes)
+{
+    g_packets_received++;
+    /* Store num_bytes regardless of size match so we can debug */
+    g_last_rx_num_bytes = num_bytes;
+    if (num_bytes == sizeof(SensorData)) {
+        memcpy(&g_last_sensor_data, data, sizeof(SensorData));
+        g_new_data_available = 1;
+    } else {
+        /* Wrong size received - flag it */
+        g_wrong_size_received = 1;
+    }
+}
+
+void USART1_IRQHandler(void)
+{
+    SerialReceiveHandler(&USART1_PORT);
+}
+
+void USART2_IRQHandler(void)
+{
+    SerialReceiveHandler(&USART2_PORT);
+}
+
+int main(void)
+{
+    char debug_buf[64];
+
+    /* Initialise USART1 with both TX and RX callbacks
+     * PC10 (TX) jumpered to PC11 (RX) for loopback */
+    SerialInitialise(BAUD_115200, &USART1_PORT, &on_tx_complete, &on_rx_complete);
+    SerialOutputString((uint8_t*)"USART1 init OK\r\n", &USART1_PORT);
+
+    SerialOutputString((uint8_t*)"================================\r\n", &USART1_PORT);
+    SerialOutputString((uint8_t*)"MTRX2700 Exercise 3\r\n", &USART1_PORT);
+    SerialOutputString((uint8_t*)"Loopback: PC10 jumpered to PC11\r\n", &USART1_PORT);
+    SerialOutputString((uint8_t*)"================================\r\n", &USART1_PORT);
+
+    /* Small delay before sending */
+    for (volatile uint32_t i = 0; i < 0x8ffff; i++) {}
+
+    /* Send structured packet - looped back via PC10->PC11 jumper
+     * No debug strings immediately before/after - they would corrupt
+     * the packet bytes going through the RX state machine */
+    sendMsg((void*)&TX_SENSOR_DATA, sizeof(TX_SENSOR_DATA),
+            MSG_TYPE_SENSOR, &USART1_PORT);
+
+    /* Wait for packet to be fully received before printing anything */
+    for (volatile uint32_t i = 0; i < 0x8ffff; i++) {}
+
+    for (;;) {
+        /* Print packet count every loop so we can see if anything arrives */
+        if (g_wrong_size_received) {
+            g_wrong_size_received = 0;
+            char sz_buf[64];
+            sprintf(sz_buf, "Wrong size: got %lu expected %lu\r\n",
+                    g_last_rx_num_bytes, (uint32_t)sizeof(SensorData));
+            SerialOutputString((uint8_t*)sz_buf, &USART1_PORT);
+        }
+
+        if (g_new_data_available) {
+            g_new_data_available = 0;
+
+            if (g_last_sensor_data.x            == TX_SENSOR_DATA.x &&
+                g_last_sensor_data.y            == TX_SENSOR_DATA.y &&
+                g_last_sensor_data.z            == TX_SENSOR_DATA.z &&
+                g_last_sensor_data.timestamp_ms == TX_SENSOR_DATA.timestamp_ms)
+            {
+                g_loopback_test_passed = 1;
+                SerialOutputString((uint8_t*)"Loopback test PASSED!\r\n", &USART1_PORT);
+
+                sprintf(debug_buf, "  x=%d y=%d z=%d ts=%lu\r\n",
+                        g_last_sensor_data.x,
+                        g_last_sensor_data.y,
+                        g_last_sensor_data.z,
+                        g_last_sensor_data.timestamp_ms);
+                SerialOutputString((uint8_t*)debug_buf, &USART1_PORT);
+            } else {
+                g_loopback_test_passed = 0;
+                SerialOutputString((uint8_t*)"Loopback test FAILED!\r\n", &USART1_PORT);
+            }
+        }
+    }
+}
