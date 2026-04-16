@@ -1,0 +1,5 @@
+../Inc/core_cm4.h:1688:22:__NVIC_EnableIRQ	2
+../Src/timer.c:9:6:timer_init	1
+../Src/timer.c:38:6:setperiod	1
+../Src/timer.c:45:10:getperiod	1
+../Src/timer.c:50:6:TIM2_IRQHandler	3
