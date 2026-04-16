@@ -166,4 +166,11 @@ void sendMsg(void *data, uint8_t size, uint8_t msg_type, SerialPort *serial_port
  */
 void SerialReceiveHandler(SerialPort *serial_port);
 
+/**
+ * @brief  Reset the RX state machine to WAIT_START.
+ *         Call this before sending a packet on a loopback port to ensure
+ *         the receiver is in a clean state.
+ */
+void SerialResetReceiver(SerialPort *serial_port);
+
 #endif /* SERIAL_H_ */

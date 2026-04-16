@@ -1,33 +1,22 @@
 /**
  ******************************************************************************
  * @file    main.c
- * @brief   Exercise 3 - Serial Interface demonstration
+ * @brief   Exercise 3 - Serial Interface loopback test
  *
- * Demonstrates:
- *   a) SerialOutputString  - null-terminated debug strings over USART1
- *   b) sendMsg             - structured packet transmission over USART2
- *   c) Interrupt-driven receive via rx_complete callback
- *
- * Wiring assumptions
- *   USART1 (PC10/PC11) -> USB-Serial adapter -> PC terminal (debug console)
- *   USART2 (PA2 TX / PA3 RX) -> loopback or second STM32 board
+ * Hardware: jumper PC10 to PC11
+ * View output: screen /dev/tty.usbmodem103 115200
  ******************************************************************************
  */
 
 #include <stdint.h>
+#include <stddef.h>
 #include <string.h>
+#include <stdio.h>
 #include "serial.h"
 #include "stm32f303xc.h"
 
-/* =========================================================================
- * Example message structures
- * ====================================================================== */
+#define MSG_TYPE_SENSOR 0x01
 
-/** Application-defined message type identifiers */
-#define MSG_TYPE_SENSOR  0x01
-#define MSG_TYPE_COMMAND 0x02
-
-/** Example sensor data structure */
 typedef struct {
     uint16_t x;
     uint16_t y;
@@ -35,128 +24,86 @@ typedef struct {
     uint32_t timestamp_ms;
 } SensorData;
 
-/** Example command structure */
-typedef struct {
-    uint8_t  command_id;
-    uint8_t  param;
-} CommandMsg;
+static volatile uint8_t  g_new_data_available  = 0;
+static SensorData        g_last_sensor_data     = {0};
+static volatile uint8_t  g_loopback_test_passed = 0;
+static volatile uint32_t g_packets_received     = 0;
 
-/* =========================================================================
- * Received data storage
- *   We copy data out of the rx_buffer inside the callback so the buffer
- *   is free for the next incoming packet immediately.
- * ====================================================================== */
-static volatile uint8_t  g_new_data_available = 0;
-static SensorData        g_last_sensor_data   = {0};
+static const SensorData TX_SENSOR_DATA = {
+    .x            = 100,
+    .y            = 200,
+    .z            = 300,
+    .timestamp_ms = 12345
+};
 
-/* =========================================================================
- * Callbacks
- * ====================================================================== */
+void on_tx_complete(uint32_t bytes_sent) { (void)bytes_sent; }
 
-/**
- * @brief  TX complete callback - called after SerialOutputString finishes.
- */
-void on_tx_complete(uint32_t bytes_sent)
-{
-    /* Optional: toggle a debug LED, update a counter, etc. */
-    (void)bytes_sent;
-}
-
-/**
- * @brief  RX complete callback - called from the USART2 ISR when a valid
- *         packet has been received and its checksum verified.
- *
- * @param  data       Pointer to the internal receive buffer (body bytes only).
- * @param  num_bytes  Number of body bytes.
- *
- * IMPORTANT: This runs in interrupt context - keep it short.
- *            Copy data out, set a flag, return quickly.
- */
 void on_rx_complete(uint8_t *data, uint32_t num_bytes)
 {
+    g_packets_received++;
     if (num_bytes == sizeof(SensorData)) {
-        /* Copy received bytes into our local structure */
         memcpy(&g_last_sensor_data, data, sizeof(SensorData));
         g_new_data_available = 1;
     }
 }
 
-/* =========================================================================
- * IRQ Handlers
- *   These forward to SerialReceiveHandler so the implementation stays in
- *   serial.c and does not spread across multiple files.
- * ====================================================================== */
+void USART1_EXTI25_IRQHandler(void) { SerialReceiveHandler(&USART1_PORT); }
+void USART2_EXTI26_IRQHandler(void) { SerialReceiveHandler(&USART2_PORT); }
 
-void USART1_IRQHandler(void)
-{
-    SerialReceiveHandler(&USART1_PORT);
-}
-
-void USART2_IRQHandler(void)
-{
-    SerialReceiveHandler(&USART2_PORT);
-}
-
-/* =========================================================================
- * main
- * ====================================================================== */
 int main(void)
 {
-    /* ------------------------------------------------------------------
-     * Initialise serial ports
-     * ------------------------------------------------------------------ */
+    char debug_buf[64];
 
-    /* USART1: debug console output to PC. No rx callback needed here. */
-    SerialInitialise(BAUD_115200, &USART1_PORT, &on_tx_complete, NULL);
-
-    /* USART2: inter-board structured messages. Rx callback fires on arrival. */
-    SerialInitialise(BAUD_115200, &USART2_PORT, NULL, &on_rx_complete);
-
-    /* ------------------------------------------------------------------
-     * (a) Debug string output
-     * ------------------------------------------------------------------ */
-    SerialOutputString((uint8_t*)"MTRX2700 Exercise 3 - Serial Module\r\n",
-                       &USART1_PORT);
-    SerialOutputString((uint8_t*)"Sending structured sensor packet...\r\n",
-                       &USART1_PORT);
-
-    /* ------------------------------------------------------------------
-     * (b) Send a structured packet
-     * ------------------------------------------------------------------ */
-    SensorData tx_data = {
-        .x            = 100,
-        .y            = 200,
-        .z            = 300,
-        .timestamp_ms = 12345
-    };
-
-    sendMsg(&tx_data, sizeof(tx_data), MSG_TYPE_SENSOR, &USART2_PORT);
-
-    /* Also send a command message to show different message types work */
-    CommandMsg cmd = { .command_id = 0x01, .param = 0xFF };
-    sendMsg(&cmd, sizeof(cmd), MSG_TYPE_COMMAND, &USART2_PORT);
-
-    /* ------------------------------------------------------------------
-     * (c) Main loop - process received packets when flagged by ISR
-     * ------------------------------------------------------------------ */
-    uint8_t debug_buf[64];
+    SerialInitialise(BAUD_115200, &USART1_PORT, &on_tx_complete, &on_rx_complete);
+    SerialOutputString((uint8_t*)"USART1 init OK\r\n", &USART1_PORT);
+    SerialOutputString((uint8_t*)"Waiting to enter loop...\r\n", &USART1_PORT);
 
     for (;;) {
+        /* Reset receiver, send packet, wait for it to come back */
+        SerialResetReceiver(&USART1_PORT);
+        sendMsg((void*)&TX_SENSOR_DATA, sizeof(TX_SENSOR_DATA),
+                MSG_TYPE_SENSOR, &USART1_PORT);
+
+        /* Wait long enough for all bytes to come back through loopback */
+        for (volatile uint32_t i = 0; i < 0x3ffff; i++) {}
+
         if (g_new_data_available) {
-            /* Clear flag first to avoid missing a packet that arrives
-               while we are processing this one */
             g_new_data_available = 0;
 
-            /* Use the debug port to print what we received */
-            SerialOutputString((uint8_t*)"Received sensor packet!\r\n",
-                               &USART1_PORT);
-
-            /*
-             * In a real application you would format g_last_sensor_data
-             * here and send it over USART1 using SerialOutputString.
-             * sprintf is available if you link newlib (syscalls.c present).
-             */
-            (void)debug_buf; /* suppress unused warning in this skeleton */
+            if (g_last_sensor_data.x            == TX_SENSOR_DATA.x &&
+                g_last_sensor_data.y            == TX_SENSOR_DATA.y &&
+                g_last_sensor_data.z            == TX_SENSOR_DATA.z &&
+                g_last_sensor_data.timestamp_ms == TX_SENSOR_DATA.timestamp_ms)
+            {
+                g_loopback_test_passed = 1;
+                SerialOutputString((uint8_t*)"Loopback test PASSED!\r\n", &USART1_PORT);
+                sprintf(debug_buf, "  x=%d y=%d z=%d ts=%lu\r\n",
+                        g_last_sensor_data.x,
+                        g_last_sensor_data.y,
+                        g_last_sensor_data.z,
+                        g_last_sensor_data.timestamp_ms);
+                SerialOutputString((uint8_t*)debug_buf, &USART1_PORT);
+            } else {
+                SerialOutputString((uint8_t*)"Loopback FAILED - data mismatch!\r\n", &USART1_PORT);
+                sprintf(debug_buf, "  got x=%d y=%d z=%d ts=%lu\r\n",
+                        g_last_sensor_data.x,
+                        g_last_sensor_data.y,
+                        g_last_sensor_data.z,
+                        g_last_sensor_data.timestamp_ms);
+                SerialOutputString((uint8_t*)debug_buf, &USART1_PORT);
+            }
+        } else {
+            extern volatile uint32_t dbg_start_bytes_seen;
+            extern volatile uint32_t dbg_total_bytes_seen;
+            extern volatile uint32_t dbg_checksum_failures;
+            extern volatile uint32_t dbg_packets_completed;
+            sprintf(debug_buf, "No rx: total=%lu start=%lu chkfail=%lu complete=%lu\r\n",
+                    dbg_total_bytes_seen, dbg_start_bytes_seen,
+                    dbg_checksum_failures, dbg_packets_completed);
+            SerialOutputString((uint8_t*)debug_buf, &USART1_PORT);
         }
+
+        /* Wait before sending next packet */
+        for (volatile uint32_t i = 0; i < 0x8ffff; i++) {}
     }
 }

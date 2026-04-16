@@ -1,0 +1,8 @@
+../Drivers/CMSIS/Include/core_cm4.h:1688:22:__NVIC_EnableIRQ	2
+../Drivers/CMSIS/Include/core_cm4.h:1816:22:__NVIC_SetPriority	2
+../Src/serial.c:158:6:SerialInitialise	6
+../Src/serial.c:215:6:SerialOutputChar	4
+../Src/serial.c:230:6:SerialOutputString	3
+../Src/serial.c:251:6:sendMsg	2
+../Src/serial.c:283:6:SerialResetReceiver	1
+../Src/serial.c:303:6:SerialReceiveHandler	15
