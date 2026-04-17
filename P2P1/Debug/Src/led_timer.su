@@ -1,0 +1,4 @@
+../Src/led_timer.c:21:6:led_timer_init	16	static
+../Src/led_timer.c:38:6:led_set_rate_limited	16	static
+../Src/led_timer.c:45:10:get_tick	4	static
+../Src/led_timer.c:50:6:TIM2_IRQHandler	8	static
