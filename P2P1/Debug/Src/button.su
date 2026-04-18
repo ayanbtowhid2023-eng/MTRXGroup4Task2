@@ -1,0 +1,5 @@
+../Src/button.c:14:5:button_init	24	static
+../Src/button.c:45:5:button_read	16	static
+../Src/button.c:52:5:button_get_flag	4	static
+../Src/button.c:57:6:button_clear_flag	4	static
+../Src/button.c:63:6:EXTI0_IRQHandler	8	static
