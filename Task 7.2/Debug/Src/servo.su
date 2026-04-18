@@ -1,0 +1,3 @@
+../Src/servo.c:34:6:servo_init	4	static
+../Src/servo.c:88:6:servo_set_position	16	static
+../Src/servo.c:96:10:servo_get_position_us	4	static

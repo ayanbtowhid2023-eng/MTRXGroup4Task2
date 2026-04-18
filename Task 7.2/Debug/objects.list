@@ -1,4 +1,6 @@
+"./Src/gpio.o"
 "./Src/main.o"
+"./Src/servo.o"
 "./Src/syscalls.o"
 "./Src/sysmem.o"
 "./Src/timer.o"

@@ -1,32 +1,35 @@
-#include <stm32f303xc.h>
+/**
+ * @file main.c
+ * @brief Exercise 2 -- Hardware PWM servo demo.
+ *
+ * Sweeps servo CW -> centre -> CCW repeatedly.
+ *
+ * Wiring:
+ *   Servo brown/black -> GND (Discovery board GND)
+ *   Servo red         -> 5V  (Discovery board 5V)
+ *   Servo orange      -> PA6 (TIM3 CH1 hardware PWM output)
+ *
+ * NOTE: signal wire must be on PA6, NOT PA1.
+ */
+
+#include <stdint.h>
+#include "registers.h"
 #include "timer.h"
+#include "servo.h"
 
-void chase_led(void) {
-    uint8_t *led_register = ((uint8_t*)&(GPIOE->ODR)) + 1;
-    *led_register <<= 1;
-    if (*led_register == 0) {
-        *led_register = 1;
+int main(void)
+{
+    servo_init();
+
+    while (1)
+    {
+        servo_set_position(SERVO_POS_MIN_US);       /* 1 ms -- full CW */
+        for (volatile int i = 0; i < 800000; i++);
+
+        servo_set_position(SERVO_POS_CENTRE_US);    /* 1.5 ms -- centre */
+        for (volatile int i = 0; i < 800000; i++);
+
+        servo_set_position(SERVO_POS_MAX_US);       /* 2 ms -- full CCW */
+        for (volatile int i = 0; i < 800000; i++);
     }
-}
-
-int main(void) {
-    // Enable clocks
-    RCC->AHBENR |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_GPIOCEN | RCC_AHBENR_GPIOEEN;
-
-    // Set PE8-15 as outputs
-    uint16_t *led_output_registers = ((uint16_t *)&(GPIOE->MODER)) + 1;
-    *led_output_registers = 0x5555;
-
-    // Set initial LED state
-    uint8_t *led_register = ((uint8_t*)&(GPIOE->ODR)) + 1;
-    *led_register = 1;
-
-    // --- Task a) basic timer ---
-    timer_init(500, &chase_led);
-
-    // --- Task b) get/set period ---
-    //setperiod(100);                      // speed up
-   //setperiod(getperiod() * 2);          // double current period
-
-    for (;;) {}
 }

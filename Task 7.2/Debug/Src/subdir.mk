@@ -5,19 +5,25 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
+../Src/gpio.c \
 ../Src/main.c \
+../Src/servo.c \
 ../Src/syscalls.c \
 ../Src/sysmem.c \
 ../Src/timer.c 
 
 OBJS += \
+./Src/gpio.o \
 ./Src/main.o \
+./Src/servo.o \
 ./Src/syscalls.o \
 ./Src/sysmem.o \
 ./Src/timer.o 
 
 C_DEPS += \
+./Src/gpio.d \
 ./Src/main.d \
+./Src/servo.d \
 ./Src/syscalls.d \
 ./Src/sysmem.d \
 ./Src/timer.d 
@@ -30,7 +36,7 @@ Src/%.o Src/%.su Src/%.cyclo: ../Src/%.c Src/subdir.mk
 clean: clean-Src
 
 clean-Src:
-	-$(RM) ./Src/main.cyclo ./Src/main.d ./Src/main.o ./Src/main.su ./Src/syscalls.cyclo ./Src/syscalls.d ./Src/syscalls.o ./Src/syscalls.su ./Src/sysmem.cyclo ./Src/sysmem.d ./Src/sysmem.o ./Src/sysmem.su ./Src/timer.cyclo ./Src/timer.d ./Src/timer.o ./Src/timer.su
+	-$(RM) ./Src/gpio.cyclo ./Src/gpio.d ./Src/gpio.o ./Src/gpio.su ./Src/main.cyclo ./Src/main.d ./Src/main.o ./Src/main.su ./Src/servo.cyclo ./Src/servo.d ./Src/servo.o ./Src/servo.su ./Src/syscalls.cyclo ./Src/syscalls.d ./Src/syscalls.o ./Src/syscalls.su ./Src/sysmem.cyclo ./Src/sysmem.d ./Src/sysmem.o ./Src/sysmem.su ./Src/timer.cyclo ./Src/timer.d ./Src/timer.o ./Src/timer.su
 
 .PHONY: clean-Src
 

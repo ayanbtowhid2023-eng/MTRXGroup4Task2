@@ -1,5 +1,6 @@
-../Inc/core_cm4.h:1688:22:__NVIC_EnableIRQ	16	static
-../Src/timer.c:9:6:timer_init	16	static,ignoring_inline_asm
-../Src/timer.c:38:6:setperiod	16	static
-../Src/timer.c:45:10:getperiod	4	static
-../Src/timer.c:50:6:TIM2_IRQHandler	8	static
+../Src/timer.c:27:6:TIM3_IRQHandler	8	static
+../Src/timer.c:47:6:timer_init	16	static,ignoring_inline_asm
+../Src/timer.c:85:6:timer_set_period_ms	16	static
+../Src/timer.c:92:10:timer_get_period_ms	4	static
+../Src/timer.c:97:6:timer_set_callback	16	static
+../Src/timer.c:102:6:timer_one_shot	16	static

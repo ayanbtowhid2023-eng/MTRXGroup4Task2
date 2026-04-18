@@ -1,15 +1,59 @@
+/**
+ * @file timer.h
+ * @brief Generic repeating timer module -- bare-metal, STM32F303.
+ *
+ * Uses TIM3. TIM2 is reserved for led_timer in Ex1.
+ * TIM4 is used internally by servo.c for the pulse one-shot.
+ *
+ * Task a) -- periodic callback at configurable interval passed at init.
+ * Task b) -- period private, only accessible via get/set functions.
+ * Task d) -- one-shot delay with callback (advanced).
+ *
+ * Clock assumption: HSI = 8 MHz.
+ *   PSC = 7999  ->  1 kHz tick (1 ms per count)
+ *   ARR = period_ms - 1
+ */
+
 #ifndef TIMER_H
 #define TIMER_H
 
 #include <stdint.h>
 
-// Initialise the timer with a period (in ms) and a callback function
-void timer_init(uint32_t period_ms, void (*callback)(void));
+/** Callback type invoked on each timer period expiry (from ISR). */
+typedef void (*TimerCallback)(void);
 
-// Set the timer period (in ms)
-void setperiod(uint32_t period_ms);
+/**
+ * @brief  Initialise TIM3 for a repeating interrupt at the given period.
+ * @param  period_ms  Desired period in milliseconds (>= 1).
+ * @param  callback   Function called on each expiry. NULL to disable.
+ */
+void timer_init(uint32_t period_ms, TimerCallback callback);
 
-// Get the current timer period (in ms)
-uint32_t getperiod(void);
+/**
+ * @brief  Change the repeating period while the timer is running.
+ *         Takes effect on the next cycle.
+ * @param  period_ms  New period in milliseconds (>= 1).
+ */
+void timer_set_period_ms(uint32_t period_ms);
 
-#endif
+/**
+ * @brief  Return the current period in milliseconds.
+ *         period_ms is private -- this is the only external accessor.
+ */
+uint32_t timer_get_period_ms(void);
+
+/**
+ * @brief  Replace the periodic callback at run-time.
+ *         Pass NULL to disable without stopping the timer.
+ */
+void timer_set_callback(TimerCallback callback);
+
+/**
+ * @brief  One-shot: fire callback once after delay_ms then stop.
+ *         Call timer_init() again to resume periodic operation.
+ * @param  delay_ms  Delay in milliseconds.
+ * @param  callback  Function to call when delay elapses.
+ */
+void timer_one_shot(uint32_t delay_ms, TimerCallback callback);
+
+#endif /* TIMER_H */

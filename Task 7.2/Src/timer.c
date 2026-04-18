@@ -1,57 +1,124 @@
+/**
+ * @file timer.c
+ * @brief Generic repeating timer -- TIM3, bare-metal STM32F303.
+ *
+ * HSI = 8 MHz.
+ * PSC  = 7999  ->  TIM3 clock = 1 kHz  (1 tick = 1 ms)
+ * ARR  = period_ms - 1
+ *
+ * Task a) -- periodic callback at configurable interval.
+ * Task b) -- period private, only exposed via get/set functions.
+ * Task d) -- one-shot: fires once then stops.
+ */
+
 #include "timer.h"
-#include <stm32f303xc.h>
-#include <stddef.h>
+#include "registers.h"
 
-// Hidden from outside - only accessible within this file
-static void (*timer_callback)(void) = NULL;
-static uint32_t current_period_ms = 0;
+/* -----------------------------------------------------------------------
+ * Private state -- not accessible outside this file
+ * --------------------------------------------------------------------- */
+static volatile uint32_t  period_ms     = 0;
+static          TimerCallback cb        = 0;
+static volatile int       one_shot_mode = 0;
 
-void timer_init(uint32_t period_ms, void (*callback)(void)) {
+/* -----------------------------------------------------------------------
+ * TIM3 ISR
+ * --------------------------------------------------------------------- */
+void TIM3_IRQHandler(void)
+{
+    /* Clear update-interrupt flag */
+    TIM3->SR &= ~(1U << 0);
 
-    // Store the callback and period
-    timer_callback = callback;
-    current_period_ms = period_ms;
-
-    __disable_irq();
-
-    // Enable TIM2 clock
-    RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
-
-    // Prescaler: 8MHz / 8000 = 1000 Hz (1 tick = 1ms)
-    TIM2->PSC = 7999;
-
-    // Auto-reload: fires every period_ms ticks = period_ms milliseconds
-    TIM2->ARR = period_ms - 1;
-
-    // Enable update interrupt
-    TIM2->DIER |= TIM_DIER_UIE;
-
-    // Enable in NVIC
-    NVIC_EnableIRQ(TIM2_IRQn);
-
-    // Start the timer
-    TIM2->CR1 |= TIM_CR1_CEN;
-
-    __enable_irq();
-}
-
-void setperiod(uint32_t period_ms) {
-    current_period_ms = period_ms;
-
-    // Update the hardware register directly - no need to reinitialise
-    TIM2->ARR = period_ms - 1;
-}
-
-uint32_t getperiod(void) {
-    return current_period_ms;
-}
-
-// ISR - called by hardware when timer fires
-void TIM2_IRQHandler(void) {
-    if (TIM2->SR & TIM_SR_UIF) {
-        if (timer_callback != NULL) {
-            timer_callback();
-        }
-        TIM2->SR &= ~TIM_SR_UIF;  // clear flag AFTER calling callback
+    if (one_shot_mode) {
+        /* Stop the timer immediately */
+        TIM3->CR1 &= ~(1U << 0);
+        one_shot_mode = 0;
     }
+
+    if (cb != 0) {
+        cb();
+    }
+}
+
+/* -----------------------------------------------------------------------
+ * Public API
+ * --------------------------------------------------------------------- */
+
+void timer_init(uint32_t period_ms_arg, TimerCallback callback)
+{
+    period_ms     = (period_ms_arg >= 1) ? period_ms_arg : 1;
+    cb            = callback;
+    one_shot_mode = 0;
+
+    /* Enable TIM3 clock */
+    RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
+
+    __asm__("cpsid i");
+
+    /* Stop timer while configuring */
+    TIM3->CR1 &= ~(1U << 0);
+
+    /* 8 MHz / (7999 + 1) = 1 kHz -- one tick per ms */
+    TIM3->PSC = 7999;
+
+    /* Period: ARR = period_ms - 1 */
+    TIM3->ARR = (uint32_t)(period_ms - 1);
+
+    /* Force an update to load PSC/ARR into shadow registers */
+    TIM3->EGR |= (1U << 0);
+
+    /* Clear any pending interrupt that the EGR write may have set */
+    TIM3->SR &= ~(1U << 0);
+
+    /* Enable update interrupt */
+    TIM3->DIER |= (1U << 0);
+
+    NVIC_SetPriority(TIM3_IRQn, 2);
+    NVIC_EnableIRQ(TIM3_IRQn);
+
+    /* Start timer */
+    TIM3->CR1 |= (1U << 0);
+
+    __asm__("cpsie i");
+}
+
+void timer_set_period_ms(uint32_t new_period_ms)
+{
+    if (new_period_ms < 1) new_period_ms = 1;
+    period_ms = new_period_ms;
+    TIM3->ARR = (uint32_t)(period_ms - 1);
+}
+
+uint32_t timer_get_period_ms(void)
+{
+    return period_ms;
+}
+
+void timer_set_callback(TimerCallback callback)
+{
+    cb = callback;
+}
+
+void timer_one_shot(uint32_t delay_ms, TimerCallback callback)
+{
+    if (delay_ms < 1) delay_ms = 1;
+    cb            = callback;
+    one_shot_mode = 1;
+    period_ms     = delay_ms;
+
+    TIM3->CR1 &= ~(1U << 0);
+
+    RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
+
+    TIM3->PSC  = 7999;
+    TIM3->ARR  = (uint32_t)(delay_ms - 1);
+    TIM3->CNT  = 0;
+    TIM3->EGR |= (1U << 0);
+    TIM3->SR  &= ~(1U << 0);
+    TIM3->DIER |= (1U << 0);
+
+    NVIC_SetPriority(TIM3_IRQn, 2);
+    NVIC_EnableIRQ(TIM3_IRQn);
+
+    TIM3->CR1 |= (1U << 0);
 }
