@@ -13,16 +13,13 @@
 #include "timer.h"
 #include "registers.h"
 
-/* -----------------------------------------------------------------------
- * Private state -- not accessible outside this file
- * --------------------------------------------------------------------- */
-static volatile uint32_t period_ms  = 0;
-static          TimerCallback cb    = 0;
+// Inaccessible variables outside of this file - require get and set functions for outside access
+static volatile uint32_t period_ms  = 0; // Period of timer - static as it is inaccessible, and volatile to signal that it is a changing value and must be read/written to from memory constantly
+static          TimerCallback cb    = 0; // Represents an empty function pointer, when we jump to the pointer of a function we check that the pointer is not empty (actually points to an address)
 
-/* -----------------------------------------------------------------------
- * TIM3 ISR
- * --------------------------------------------------------------------- */
-void TIM3_IRQHandler(void)
+
+// TIM3 Interrupt Service Routine - Function that runs when interrupt is fired
+void TIM3_IRQHandler(void) // Interrupt request handler for TIM3
 {
     TIM3->SR &= ~(1U << 0);   /* clear update interrupt flag */
     if (cb != 0) {
@@ -60,7 +57,6 @@ void timer_init(uint32_t period_ms_arg, TimerCallback callback)
 
 void timer_set_period_ms(uint32_t new_period_ms)
 {
-    if (new_period_ms < 1) new_period_ms = 1;
     period_ms  = new_period_ms;
     TIM3->ARR  = (uint32_t)(period_ms - 1);
 }
