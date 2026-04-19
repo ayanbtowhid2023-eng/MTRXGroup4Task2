@@ -2,12 +2,10 @@
  * @file timer.h
  * @brief Generic repeating timer module -- bare-metal, STM32F303.
  *
- * Uses TIM3. TIM2 is reserved for led_timer in Ex1.
- * TIM4 is used internally by servo.c for the pulse one-shot.
+ * Uses TIM3. TIM2 reserved for Ex1 led_timer. TIM4 used by one_shot.c.
  *
  * Task a) -- periodic callback at configurable interval passed at init.
  * Task b) -- period private, only accessible via get/set functions.
- * Task d) -- one-shot delay with callback (advanced).
  *
  * Clock assumption: HSI = 8 MHz.
  *   PSC = 7999  ->  1 kHz tick (1 ms per count)
@@ -47,13 +45,5 @@ uint32_t timer_get_period_ms(void);
  *         Pass NULL to disable without stopping the timer.
  */
 void timer_set_callback(TimerCallback callback);
-
-/**
- * @brief  One-shot: fire callback once after delay_ms then stop.
- *         Call timer_init() again to resume periodic operation.
- * @param  delay_ms  Delay in milliseconds.
- * @param  callback  Function to call when delay elapses.
- */
-void timer_one_shot(uint32_t delay_ms, TimerCallback callback);
 
 #endif /* TIMER_H */

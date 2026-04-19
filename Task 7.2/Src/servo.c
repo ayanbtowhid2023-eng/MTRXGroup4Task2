@@ -22,6 +22,7 @@
 
 #include "servo.h"
 #include "timer.h"
+#include "gpio.h"
 #include "registers.h"
 
 /* Private: current pulse width in microseconds */
@@ -35,23 +36,11 @@ void servo_init(void)
 {
     pulse_us = SERVO_POS_CENTRE_US;
 
-    /* 1. Enable clocks for GPIOA and TIM3 */
-    RCC->AHBENR  |= RCC_AHBENR_GPIOAEN;
+    /* 1. Enable TIM3 clock */
     RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
 
-    /* 2. Configure PA6 as alternate function (AF2 = TIM3_CH1) */
-    /* MODER: bits 13:12 = 10 (alternate function) */
-    GPIOA->MODER &= ~(0x3U << 12);
-    GPIOA->MODER |=  (0x2U << 12);
-    /* OTYPER: push-pull (default, bit 6 = 0) */
-    GPIOA->OTYPER &= ~(1U << 6);
-    /* OSPEEDR: high speed */
-    GPIOA->OSPEEDR |= (0x3U << 12);
-    /* PUPDR: no pull */
-    GPIOA->PUPDR &= ~(0x3U << 12);
-    /* AFR[0]: PA6 uses AF2 -- bits 27:24 of AFR[0] */
-    GPIOA->AFR[0] &= ~(0xFU << 24);
-    GPIOA->AFR[0] |=  (0x2U << 24);   /* AF2 = TIM3_CH1 */
+    /* 2. Configure PA6 as AF2 (TIM3_CH1) using gpio module from Ex1 */
+    gpio_init_af(GPIOA, 6, 2);
 
     /* 3. Configure TIM3 timebase
      *    PSC = 7  ->  8MHz / 8 = 1 MHz (1 tick = 1 us)

@@ -1,6 +1,5 @@
-../Src/timer.c:27:6:TIM3_IRQHandler	3
-../Src/timer.c:47:6:timer_init	2
-../Src/timer.c:85:6:timer_set_period_ms	2
-../Src/timer.c:92:10:timer_get_period_ms	1
-../Src/timer.c:97:6:timer_set_callback	1
-../Src/timer.c:102:6:timer_one_shot	2
+../Src/timer.c:25:6:TIM3_IRQHandler	2
+../Src/timer.c:37:6:timer_init	2
+../Src/timer.c:61:6:timer_set_period_ms	2
+../Src/timer.c:68:10:timer_get_period_ms	1
+../Src/timer.c:73:6:timer_set_callback	1

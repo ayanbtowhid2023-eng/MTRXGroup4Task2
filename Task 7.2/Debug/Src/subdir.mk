@@ -7,6 +7,7 @@
 C_SRCS += \
 ../Src/gpio.c \
 ../Src/main.c \
+../Src/one_shot.c \
 ../Src/servo.c \
 ../Src/syscalls.c \
 ../Src/sysmem.c \
@@ -15,6 +16,7 @@ C_SRCS += \
 OBJS += \
 ./Src/gpio.o \
 ./Src/main.o \
+./Src/one_shot.o \
 ./Src/servo.o \
 ./Src/syscalls.o \
 ./Src/sysmem.o \
@@ -23,6 +25,7 @@ OBJS += \
 C_DEPS += \
 ./Src/gpio.d \
 ./Src/main.d \
+./Src/one_shot.d \
 ./Src/servo.d \
 ./Src/syscalls.d \
 ./Src/sysmem.d \
@@ -36,7 +39,7 @@ Src/%.o Src/%.su Src/%.cyclo: ../Src/%.c Src/subdir.mk
 clean: clean-Src
 
 clean-Src:
-	-$(RM) ./Src/gpio.cyclo ./Src/gpio.d ./Src/gpio.o ./Src/gpio.su ./Src/main.cyclo ./Src/main.d ./Src/main.o ./Src/main.su ./Src/servo.cyclo ./Src/servo.d ./Src/servo.o ./Src/servo.su ./Src/syscalls.cyclo ./Src/syscalls.d ./Src/syscalls.o ./Src/syscalls.su ./Src/sysmem.cyclo ./Src/sysmem.d ./Src/sysmem.o ./Src/sysmem.su ./Src/timer.cyclo ./Src/timer.d ./Src/timer.o ./Src/timer.su
+	-$(RM) ./Src/gpio.cyclo ./Src/gpio.d ./Src/gpio.o ./Src/gpio.su ./Src/main.cyclo ./Src/main.d ./Src/main.o ./Src/main.su ./Src/one_shot.cyclo ./Src/one_shot.d ./Src/one_shot.o ./Src/one_shot.su ./Src/servo.cyclo ./Src/servo.d ./Src/servo.o ./Src/servo.su ./Src/syscalls.cyclo ./Src/syscalls.d ./Src/syscalls.o ./Src/syscalls.su ./Src/sysmem.cyclo ./Src/sysmem.d ./Src/sysmem.o ./Src/sysmem.su ./Src/timer.cyclo ./Src/timer.d ./Src/timer.o ./Src/timer.su
 
 .PHONY: clean-Src
 

@@ -8,7 +8,6 @@
  *
  * Task a) -- periodic callback at configurable interval.
  * Task b) -- period private, only exposed via get/set functions.
- * Task d) -- one-shot: fires once then stops.
  */
 
 #include "timer.h"
@@ -17,24 +16,15 @@
 /* -----------------------------------------------------------------------
  * Private state -- not accessible outside this file
  * --------------------------------------------------------------------- */
-static volatile uint32_t  period_ms     = 0;
-static          TimerCallback cb        = 0;
-static volatile int       one_shot_mode = 0;
+static volatile uint32_t period_ms  = 0;
+static          TimerCallback cb    = 0;
 
 /* -----------------------------------------------------------------------
  * TIM3 ISR
  * --------------------------------------------------------------------- */
 void TIM3_IRQHandler(void)
 {
-    /* Clear update-interrupt flag */
-    TIM3->SR &= ~(1U << 0);
-
-    if (one_shot_mode) {
-        /* Stop the timer immediately */
-        TIM3->CR1 &= ~(1U << 0);
-        one_shot_mode = 0;
-    }
-
+    TIM3->SR &= ~(1U << 0);   /* clear update interrupt flag */
     if (cb != 0) {
         cb();
     }
@@ -46,38 +36,24 @@ void TIM3_IRQHandler(void)
 
 void timer_init(uint32_t period_ms_arg, TimerCallback callback)
 {
-    period_ms     = (period_ms_arg >= 1) ? period_ms_arg : 1;
-    cb            = callback;
-    one_shot_mode = 0;
+    period_ms = (period_ms_arg >= 1) ? period_ms_arg : 1;
+    cb        = callback;
 
-    /* Enable TIM3 clock */
     RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
 
     __asm__("cpsid i");
 
-    /* Stop timer while configuring */
-    TIM3->CR1 &= ~(1U << 0);
-
-    /* 8 MHz / (7999 + 1) = 1 kHz -- one tick per ms */
-    TIM3->PSC = 7999;
-
-    /* Period: ARR = period_ms - 1 */
-    TIM3->ARR = (uint32_t)(period_ms - 1);
-
-    /* Force an update to load PSC/ARR into shadow registers */
-    TIM3->EGR |= (1U << 0);
-
-    /* Clear any pending interrupt that the EGR write may have set */
-    TIM3->SR &= ~(1U << 0);
-
-    /* Enable update interrupt */
-    TIM3->DIER |= (1U << 0);
+    TIM3->CR1  &= ~(1U << 0);          /* stop while configuring */
+    TIM3->PSC   = 7999;                 /* 8MHz / 8000 = 1 kHz */
+    TIM3->ARR   = (uint32_t)(period_ms - 1);
+    TIM3->EGR  |= (1U << 0);           /* load shadow registers */
+    TIM3->SR   &= ~(1U << 0);          /* clear pending flag */
+    TIM3->DIER |= (1U << 0);           /* enable update interrupt */
 
     NVIC_SetPriority(TIM3_IRQn, 2);
     NVIC_EnableIRQ(TIM3_IRQn);
 
-    /* Start timer */
-    TIM3->CR1 |= (1U << 0);
+    TIM3->CR1  |= (1U << 0);           /* start */
 
     __asm__("cpsie i");
 }
@@ -85,8 +61,8 @@ void timer_init(uint32_t period_ms_arg, TimerCallback callback)
 void timer_set_period_ms(uint32_t new_period_ms)
 {
     if (new_period_ms < 1) new_period_ms = 1;
-    period_ms = new_period_ms;
-    TIM3->ARR = (uint32_t)(period_ms - 1);
+    period_ms  = new_period_ms;
+    TIM3->ARR  = (uint32_t)(period_ms - 1);
 }
 
 uint32_t timer_get_period_ms(void)
@@ -97,28 +73,4 @@ uint32_t timer_get_period_ms(void)
 void timer_set_callback(TimerCallback callback)
 {
     cb = callback;
-}
-
-void timer_one_shot(uint32_t delay_ms, TimerCallback callback)
-{
-    if (delay_ms < 1) delay_ms = 1;
-    cb            = callback;
-    one_shot_mode = 1;
-    period_ms     = delay_ms;
-
-    TIM3->CR1 &= ~(1U << 0);
-
-    RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
-
-    TIM3->PSC  = 7999;
-    TIM3->ARR  = (uint32_t)(delay_ms - 1);
-    TIM3->CNT  = 0;
-    TIM3->EGR |= (1U << 0);
-    TIM3->SR  &= ~(1U << 0);
-    TIM3->DIER |= (1U << 0);
-
-    NVIC_SetPriority(TIM3_IRQn, 2);
-    NVIC_EnableIRQ(TIM3_IRQn);
-
-    TIM3->CR1 |= (1U << 0);
 }
