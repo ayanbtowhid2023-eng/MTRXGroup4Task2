@@ -58,11 +58,11 @@ This part also features the header files:
 - One_shot.h - Defines funcitons used in one_shot.c
 
 The main function is where the demonstrate parts A, B, C and D. The demonstrations may occur by 'un-commenting out' one of the following
-'''c
+```c
 // #define TASK_A_DEMO
 // #define TASK_C_DEMO
 // #define TASK_D_DEMO
-'''
+```
 
 ### Valid input
 
