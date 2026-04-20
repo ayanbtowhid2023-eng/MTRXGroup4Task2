@@ -1,24 +1,24 @@
-/**
- * @file main.c
- * @brief Exercise 2 -- Timer Interface demo.
- *
- * HOW TO DEMO -- uncomment ONE define at a time:
- *
- * TASK_A_DEMO: LD3 blinks at 500ms interval via timer_init() callback.
- *              Shows periodic callback at a configurable interval (task a).
- *              Uncomment the 3 lines inside main() to also demo task b --
- *              timer_get/set_period_ms() changes blink to 100ms.
- *
- * TASK_C_DEMO: Servo sweeps CW -> centre -> CCW repeatedly on PA6.
- *              servo_init() calls timer_init(20, on_period) internally.
- *
- * TASK_D_DEMO: LD3 turns on exactly once after 1000ms via
- *              one_shot_trigger(). Proves it fires once and stops.
- *
- * Wiring:
- *   Servo brown/black -> GND
- *   Servo red         -> 5V
- *   Servo orange      -> PA6
+/*
+ @file main.c
+ @brief Exercise 2 -- Timer Interface demo.
+
+ HOW TO DEMO -- uncomment ONE define at a time:
+
+ TASK_A_DEMO: LD3 blinks at 500ms interval via timer_init() callback.
+              Shows periodic callback at a configurable interval (task a).
+              Uncomment the 3 lines inside main() to also demo task b --
+              timer_get/set_period_ms() changes blink to 100ms.
+
+  TASK_C_DEMO: Servo sweeps CW -> centre -> CCW repeatedly on PA6.
+              servo_init() calls timer_init(20, on_period) internally.
+
+  TASK_D_DEMO: LD3 turns on exactly once after 1000ms via
+               one_shot_trigger(). Proves it fires once and stops.
+
+  Wiring:
+   Servo brown/black -> GND
+   Servo red         -> 5V
+   Servo orange      -> PA6
  */
 
 #include <stdint.h>
@@ -31,8 +31,8 @@
 /* -----------------------------------------------------------------------
  * Uncomment ONE at a time for each demo
  * --------------------------------------------------------------------- */
-#define TASK_A_DEMO
-// #define TASK_C_DEMO
+//#define TASK_A_DEMO
+ #define TASK_C_DEMO
 // #define TASK_D_DEMO
 
 /* -----------------------------------------------------------------------
