@@ -73,3 +73,4 @@ void timer_set_callback(TimerCallback callback)
 {
     cb = callback;
 }
+// However, when attempting to use this for the PWM there was difficulty as a second timer was required (TIM4) for the falling edge. This introduced additional errors which made it difficult to acquire the correct timing to allow for the servo to be operational.
