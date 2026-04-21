@@ -28,53 +28,45 @@
 #include "servo.h"
 #include "one_shot.h"
 
-/* -----------------------------------------------------------------------
- * Uncomment ONE at a time for each demo
- * --------------------------------------------------------------------- */
+// Un-comment 1 at a time for each demo
+
 //#define TASK_A_DEMO
- #define TASK_C_DEMO
+#define TASK_C_DEMO
 // #define TASK_D_DEMO
 
-/* -----------------------------------------------------------------------
- * TASK A: periodic callback at configurable interval
- * TASK B: comment in the three lines below on_timer to demo get/set
- * --------------------------------------------------------------------- */
+
+// Tasks A and B
 #ifdef TASK_A_DEMO
 
-static void on_timer_a(void)
+static void on_timer_a(void) // Call-back function for toggling LED's
 {
-    /* Called every 500ms by TIM3 -- toggles LD3 */
     static int state = 0;
     if (state == 0) {
-        gpio_write(GPIOE, 8, GPIO_PIN_HIGH);
+        gpio_write(GPIOE, 8, GPIO_PIN_HIGH); // Turns LED off
         state = 1;
     } else {
         gpio_write(GPIOE, 8, GPIO_PIN_LOW);
-        state = 0;
+        state = 0; // turns the LED off
     }
 }
 
 int main(void)
 {
-    gpio_init(GPIOE, 8, GPIO_DIRECTION_OUTPUT);
-    gpio_write(GPIOE, 8, GPIO_PIN_LOW);
+    gpio_init(GPIOE, 8, GPIO_DIRECTION_OUTPUT);  // Initialises GPIOE clock by enabling it and sets MODER bits for pin 8 to output mode
+    gpio_write(GPIOE, 8, GPIO_PIN_LOW); // Drives low to ensure the LED starts off before the timer starts
 
-    /* TASK A: interval (500ms) and callback passed at init */
+    // TASK A: interval (500ms) and callback passed at init
     timer_init(500, on_timer_a);
 
-    /* TASK B: uncomment these three lines to demo get/set.
-     * Period is private to timer.c -- only accessible via these functions.
-     * Comment them out again to go back to task a demo.              */
-    // uint32_t current = timer_get_period_ms();  /* read private period */
-    // (void)current;
-    // timer_set_period_ms(100);                  /* change to 100ms -- faster */
+    // TASK B: un-comment these three lines to demo get/set.
+    // uint32_t current = timer_get_period_ms();  // Gets the current period
+    // (void)current; // Removes memory
+    // timer_set_period_ms(100); // Sets the new period
 
     while (1) {}
 }
 
-/* -----------------------------------------------------------------------
- * TASK C: PWM servo sweep
- * --------------------------------------------------------------------- */
+// Task C
 #elif defined(TASK_C_DEMO)
 
 int main(void)
@@ -96,9 +88,7 @@ int main(void)
     }
 }
 
-/* -----------------------------------------------------------------------
- * TASK D: one-shot fires once then stops
- * --------------------------------------------------------------------- */
+// Task D
 #elif defined(TASK_D_DEMO)
 
 static void one_shot_callback(void)

@@ -983,13 +983,13 @@ LOAD C:/ST/STM32CubeIDE_2.1.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.exte
  .debug_macro   0x000012a1       0x16 ./Src/servo.o
  .debug_macro   0x000012b7       0x76 ./Src/timer.o
 
-.debug_line     0x00000000     0x19b2
+.debug_line     0x00000000     0x19b3
  .debug_line    0x00000000      0x63d ./Src/gpio.o
  .debug_line    0x0000063d      0x494 ./Src/main.o
  .debug_line    0x00000ad1      0x4a0 ./Src/one_shot.o
  .debug_line    0x00000f71      0x4d4 ./Src/servo.o
- .debug_line    0x00001445      0x4f2 ./Src/timer.o
- .debug_line    0x00001937       0x7b ./Startup/startup_stm32f303vctx.o
+ .debug_line    0x00001445      0x4f3 ./Src/timer.o
+ .debug_line    0x00001938       0x7b ./Startup/startup_stm32f303vctx.o
 
 .debug_str      0x00000000     0x4550
  .debug_str     0x00000000     0x4550 ./Src/gpio.o

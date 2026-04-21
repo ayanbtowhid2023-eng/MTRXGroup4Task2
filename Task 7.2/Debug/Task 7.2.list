@@ -39,15 +39,15 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  17 .debug_macro  0000132d  00000000  00000000  0000376e  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_line   000019b2  00000000  00000000  00004a9b  2**0
+ 18 .debug_line   000019b3  00000000  00000000  00004a9b  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .debug_str    00004550  00000000  00000000  0000644d  2**0
+ 19 .debug_str    00004550  00000000  00000000  0000644e  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 20 .comment      00000043  00000000  00000000  0000a99d  2**0
+ 20 .comment      00000043  00000000  00000000  0000a99e  2**0
                   CONTENTS, READONLY
- 21 .debug_frame  000002b4  00000000  00000000  0000a9e0  2**2
+ 21 .debug_frame  000002b4  00000000  00000000  0000a9e4  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 22 .debug_line_str 00000071  00000000  00000000  0000ac94  2**0
+ 22 .debug_line_str 00000071  00000000  00000000  0000ac98  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -415,8 +415,8 @@ int gpio_init_af(GPIO_t *port, uint8_t pin, uint8_t af)
 	...
 
 0800042c <main>:
- * TASK C: PWM servo sweep
- * --------------------------------------------------------------------- */
+
+// Task C
 #elif defined(TASK_C_DEMO)
 
 int main(void)
@@ -480,21 +480,21 @@ int main(void)
  800048c:	000c34ff 	.word	0x000c34ff
 
 08000490 <TIM4_IRQHandler>:
+// Private call back function pointer, initialised to NULL (0)
+static OneShotCallback stored_callback = 0;
 
-/* -----------------------------------------------------------------------
- * TIM4 ISR -- fires once then stops
- * --------------------------------------------------------------------- */
-void TIM4_IRQHandler(void)
+// Interrupt Service Routine (ISR) for TIM4
+void TIM4_IRQHandler(void) // This interrupt is triggered by the counter overflowing
 {
  8000490:	b580      	push	{r7, lr}
  8000492:	af00      	add	r7, sp, #0
-    TIM4->SR  &= ~(1U << 0);    /* clear update interrupt flag */
+    TIM4->SR  &= ~(1U << 0); // Clears the update interrupt flag to prevent the ISR from firing again immediately
  8000494:	4b0a      	ldr	r3, [pc, #40]	@ (80004c0 <TIM4_IRQHandler+0x30>)
  8000496:	691b      	ldr	r3, [r3, #16]
  8000498:	4a09      	ldr	r2, [pc, #36]	@ (80004c0 <TIM4_IRQHandler+0x30>)
  800049a:	f023 0301 	bic.w	r3, r3, #1
  800049e:	6113      	str	r3, [r2, #16]
-    TIM4->CR1 &= ~(1U << 0);    /* stop timer -- one-shot done */
+    TIM4->CR1 &= ~(1U << 0); // Stops TIM4 by clearing the CEN (Counter Enable) - This is what ensures that the interrupt is only fired once
  80004a0:	4b07      	ldr	r3, [pc, #28]	@ (80004c0 <TIM4_IRQHandler+0x30>)
  80004a2:	681b      	ldr	r3, [r3, #0]
  80004a4:	4a06      	ldr	r2, [pc, #24]	@ (80004c0 <TIM4_IRQHandler+0x30>)
@@ -506,7 +506,7 @@ void TIM4_IRQHandler(void)
  80004ae:	681b      	ldr	r3, [r3, #0]
  80004b0:	2b00      	cmp	r3, #0
  80004b2:	d002      	beq.n	80004ba <TIM4_IRQHandler+0x2a>
-        stored_callback();
+        stored_callback(); // Calls the callback function after checking that it isn't empty
  80004b4:	4b03      	ldr	r3, [pc, #12]	@ (80004c4 <TIM4_IRQHandler+0x34>)
  80004b6:	681b      	ldr	r3, [r3, #0]
  80004b8:	4798      	blx	r3
@@ -519,109 +519,102 @@ void TIM4_IRQHandler(void)
  80004c4:	20000020 	.word	0x20000020
 
 080004c8 <servo_init>:
-/* -----------------------------------------------------------------------
- * Public API
- * --------------------------------------------------------------------- */
 
-void servo_init(void)
+// Public API
+
+// Initialising the servo
+void servo_init(void) // Takes no inputs
 {
  80004c8:	b580      	push	{r7, lr}
  80004ca:	af00      	add	r7, sp, #0
-    pulse_us = SERVO_POS_CENTRE_US;
+    pulse_us = SERVO_POS_CENTRE_US; // Resets the pulse to the centre position every time the servo is initialised
  80004cc:	4b26      	ldr	r3, [pc, #152]	@ (8000568 <servo_init+0xa0>)
  80004ce:	f240 52dc 	movw	r2, #1500	@ 0x5dc
  80004d2:	601a      	str	r2, [r3, #0]
 
-    /* 1. Enable TIM3 clock */
-    RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
+
+    RCC->APB1ENR |= RCC_APB1ENR_TIM3EN; // Enabling the clock for TIM3 once more - However, here we are aiming to configure TIM3 for hardware PWM mode
  80004d4:	4b25      	ldr	r3, [pc, #148]	@ (800056c <servo_init+0xa4>)
  80004d6:	69db      	ldr	r3, [r3, #28]
  80004d8:	4a24      	ldr	r2, [pc, #144]	@ (800056c <servo_init+0xa4>)
  80004da:	f043 0302 	orr.w	r3, r3, #2
  80004de:	61d3      	str	r3, [r2, #28]
 
-    /* 2. Configure PA6 as AF2 (TIM3_CH1) using gpio module from Ex1 */
-    gpio_init_af(GPIOA, 6, 2);
+    gpio_init_af(GPIOA, 6, 2); // Configure PA6 in alternative function mode (such that the TIM3 hardware can drive the pin directly)
  80004e0:	2202      	movs	r2, #2
  80004e2:	2106      	movs	r1, #6
  80004e4:	f04f 4090 	mov.w	r0, #1207959552	@ 0x48000000
  80004e8:	f7ff ff53 	bl	8000392 <gpio_init_af>
 
-    /* 3. Configure TIM3 timebase
-     *    PSC = 7  ->  8MHz / 8 = 1 MHz (1 tick = 1 us)
-     *    ARR = 19999  ->  50 Hz (20 ms period)
-     */
-    TIM3->CR1  &= ~(1U << 0);     /* stop while configuring */
+
+    TIM3->CR1  &= ~(1U << 0); // Stops timer before configuring it
  80004ec:	4b20      	ldr	r3, [pc, #128]	@ (8000570 <servo_init+0xa8>)
  80004ee:	681b      	ldr	r3, [r3, #0]
  80004f0:	4a1f      	ldr	r2, [pc, #124]	@ (8000570 <servo_init+0xa8>)
  80004f2:	f023 0301 	bic.w	r3, r3, #1
  80004f6:	6013      	str	r3, [r2, #0]
-    TIM3->PSC   = 7;
+    TIM3->PSC   = 7; // Sets prescaler to 7 (8MHz/(7+1) = 1MHz), thus each tick corresponds to 1 microsecond
  80004f8:	4b1d      	ldr	r3, [pc, #116]	@ (8000570 <servo_init+0xa8>)
  80004fa:	2207      	movs	r2, #7
  80004fc:	629a      	str	r2, [r3, #40]	@ 0x28
-    TIM3->ARR   = 19999;
+    TIM3->ARR   = 19999; // Sets the period to 50Hz (20 seconds) -> 1/(19999 + 2)
  80004fe:	4b1c      	ldr	r3, [pc, #112]	@ (8000570 <servo_init+0xa8>)
  8000500:	f644 621f 	movw	r2, #19999	@ 0x4e1f
  8000504:	62da      	str	r2, [r3, #44]	@ 0x2c
 
-    /* 4. Configure TIM3 CH1 in PWM mode 1
-     *    CCMR1 bits 6:4 = 110 (PWM mode 1) + bit 3 = preload enable
-     */
-    TIM3->CCMR1 &= ~(0xFFU);
+
+    TIM3->CCMR1 &= ~(0xFFU); // Wipes any previous configurations of the Capture Compare Mode Register 1 (CCMR1)  - We wipe the lowest 8 bits as they correspond to Channel 1
  8000506:	4b1a      	ldr	r3, [pc, #104]	@ (8000570 <servo_init+0xa8>)
  8000508:	699b      	ldr	r3, [r3, #24]
  800050a:	4a19      	ldr	r2, [pc, #100]	@ (8000570 <servo_init+0xa8>)
  800050c:	f023 03ff 	bic.w	r3, r3, #255	@ 0xff
  8000510:	6193      	str	r3, [r2, #24]
-    TIM3->CCMR1 |=  (0x6U << 4)   /* OC1M = PWM mode 1 */
+    TIM3->CCMR1 |=  (0x6U << 4)   // This toggles the bits corresponding to the Output Compare Mode 1 (OCM1) such that PWM Mode 1 is activated
  8000512:	4b17      	ldr	r3, [pc, #92]	@ (8000570 <servo_init+0xa8>)
  8000514:	699b      	ldr	r3, [r3, #24]
  8000516:	4a16      	ldr	r2, [pc, #88]	@ (8000570 <servo_init+0xa8>)
  8000518:	f043 0368 	orr.w	r3, r3, #104	@ 0x68
  800051c:	6193      	str	r3, [r2, #24]
-                 |  (0x1U << 3);   /* OC1PE = preload enable */
+                 |  (0x1U << 3);  // Sets Output Compare 1 Pre-load Enable, such that when we write a new position value, it takes place in the next 20ms cycle (rather than mid-cycle)
 
-    /* 5. Set initial pulse width */
-    TIM3->CCR1 = (uint32_t)pulse_us;
+
+    TIM3->CCR1 = (uint32_t)pulse_us; // Setting the initial pulse width for the centre position
  800051e:	4a14      	ldr	r2, [pc, #80]	@ (8000570 <servo_init+0xa8>)
  8000520:	4b11      	ldr	r3, [pc, #68]	@ (8000568 <servo_init+0xa0>)
  8000522:	681b      	ldr	r3, [r3, #0]
  8000524:	6353      	str	r3, [r2, #52]	@ 0x34
 
-    /* 6. Enable CH1 output (CCER bit 0) */
-    TIM3->CCER |= (1U << 0);
+
+    TIM3->CCER |= (1U << 0); // Sets bit 0 of CCER (Capture Compare 1 Enable) to enable the CH1 output such that it reaches PA6
  8000526:	4b12      	ldr	r3, [pc, #72]	@ (8000570 <servo_init+0xa8>)
  8000528:	6a1b      	ldr	r3, [r3, #32]
  800052a:	4a11      	ldr	r2, [pc, #68]	@ (8000570 <servo_init+0xa8>)
  800052c:	f043 0301 	orr.w	r3, r3, #1
  8000530:	6213      	str	r3, [r2, #32]
 
-    /* 7. Enable auto-reload preload */
-    TIM3->CR1 |= (1U << 7);       /* ARPE */
+
+    TIM3->CR1 |= (1U << 7); // Sets ARPE (Auto Reload Preload Enable) which enables the pre-load register for ARR (Auto Reload Register), such that shadow registers aren't immediately written to, which may result in undesired behaviour
  8000532:	4b0f      	ldr	r3, [pc, #60]	@ (8000570 <servo_init+0xa8>)
  8000534:	681b      	ldr	r3, [r3, #0]
  8000536:	4a0e      	ldr	r2, [pc, #56]	@ (8000570 <servo_init+0xa8>)
  8000538:	f043 0380 	orr.w	r3, r3, #128	@ 0x80
  800053c:	6013      	str	r3, [r2, #0]
 
-    /* 8. Force update to load shadow registers */
-    TIM3->EGR |= (1U << 0);
+
+    TIM3->EGR |= (1U << 0); // Bit 0 of the Event Generation Reister (EGR) is Update Generation (UG). At runtime it copies everything into the shadow registers, such that there isn't one cycle of no action
  800053e:	4b0c      	ldr	r3, [pc, #48]	@ (8000570 <servo_init+0xa8>)
  8000540:	695b      	ldr	r3, [r3, #20]
  8000542:	4a0b      	ldr	r2, [pc, #44]	@ (8000570 <servo_init+0xa8>)
  8000544:	f043 0301 	orr.w	r3, r3, #1
  8000548:	6153      	str	r3, [r2, #20]
-    TIM3->SR  &= ~(1U << 0);
+    TIM3->SR  &= ~(1U << 0); // Clears the Update Interrupt Flag (UIF) such that no interrupts are fired when we enable the timer
  800054a:	4b09      	ldr	r3, [pc, #36]	@ (8000570 <servo_init+0xa8>)
  800054c:	691b      	ldr	r3, [r3, #16]
  800054e:	4a08      	ldr	r2, [pc, #32]	@ (8000570 <servo_init+0xa8>)
  8000550:	f023 0301 	bic.w	r3, r3, #1
  8000554:	6113      	str	r3, [r2, #16]
 
-    /* 9. Start timer */
-    TIM3->CR1 |= (1U << 0);
+    TIM3->CR1 |= (1U << 0); // Now that all configuration has occured we may start the counter. This line sets CEN (Counter Enable) of Control Register 1, which starts the timer.
  8000556:	4b06      	ldr	r3, [pc, #24]	@ (8000570 <servo_init+0xa8>)
  8000558:	681b      	ldr	r3, [r3, #0]
  800055a:	4a05      	ldr	r2, [pc, #20]	@ (8000570 <servo_init+0xa8>)
@@ -637,29 +630,29 @@ void servo_init(void)
 
 08000574 <servo_set_position>:
 
-void servo_set_position(uint32_t new_pulse_us)
+void servo_set_position(uint32_t new_pulse_us) // Inputs the desired pulse width in us
 {
  8000574:	b480      	push	{r7}
  8000576:	b083      	sub	sp, #12
  8000578:	af00      	add	r7, sp, #0
  800057a:	6078      	str	r0, [r7, #4]
-    if (new_pulse_us < SERVO_POS_MIN_US) new_pulse_us = SERVO_POS_MIN_US;
+    if (new_pulse_us < SERVO_POS_MIN_US) new_pulse_us = SERVO_POS_MIN_US; // ensures that the minimal position is 1000 us
  800057c:	687b      	ldr	r3, [r7, #4]
  800057e:	f5b3 7f7a 	cmp.w	r3, #1000	@ 0x3e8
  8000582:	d202      	bcs.n	800058a <servo_set_position+0x16>
  8000584:	f44f 737a 	mov.w	r3, #1000	@ 0x3e8
  8000588:	607b      	str	r3, [r7, #4]
-    if (new_pulse_us > SERVO_POS_MAX_US) new_pulse_us = SERVO_POS_MAX_US;
+    if (new_pulse_us > SERVO_POS_MAX_US) new_pulse_us = SERVO_POS_MAX_US; // ensures that the maximal position is 2000 us
  800058a:	687b      	ldr	r3, [r7, #4]
  800058c:	f5b3 6ffa 	cmp.w	r3, #2000	@ 0x7d0
  8000590:	d902      	bls.n	8000598 <servo_set_position+0x24>
  8000592:	f44f 63fa 	mov.w	r3, #2000	@ 0x7d0
  8000596:	607b      	str	r3, [r7, #4]
-    pulse_us   = new_pulse_us;
+    pulse_us   = new_pulse_us; // Sets new pulse as the pulse fed into the timer
  8000598:	4a06      	ldr	r2, [pc, #24]	@ (80005b4 <servo_set_position+0x40>)
  800059a:	687b      	ldr	r3, [r7, #4]
  800059c:	6013      	str	r3, [r2, #0]
-    TIM3->CCR1 = (uint32_t)pulse_us;
+    TIM3->CCR1 = (uint32_t)pulse_us; // Writes the new pulse width directly into CCR1. This value takes place when the next cycle begins.
  800059e:	4a06      	ldr	r2, [pc, #24]	@ (80005b8 <servo_set_position+0x44>)
  80005a0:	4b04      	ldr	r3, [pc, #16]	@ (80005b4 <servo_set_position+0x40>)
  80005a2:	681b      	ldr	r3, [r3, #0]
