@@ -7,5 +7,5 @@
 ../Src/serial.c:232:6:receiveMsg	13
 ../Src/serial.c:291:6:SerialSetRxCallback	2
 ../Src/serial.c:316:13:process_rx_byte	14
-../Src/serial.c:392:6:sendStringDB	4
-../Src/serial.c:423:6:USART1_EXTI25_IRQHandler	11
+../Src/serial.c:395:6:sendStringDB	4
+../Src/serial.c:426:6:USART1_EXTI25_IRQHandler	11

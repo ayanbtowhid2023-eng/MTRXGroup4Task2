@@ -117,7 +117,7 @@ void SerialInitialise(uint32_t baudRate,
 void SerialEnableNVIC(void)
 {
     __asm__("cpsid i");
-    NVIC_SetPriority(USART1_IRQn, 1);
+    NVIC_SetPriority(USART1_IRQn, 0);   /* highest priority */
     NVIC_EnableIRQ(USART1_IRQn);
     __asm__("cpsie i");
 }
@@ -315,6 +315,9 @@ static uint8_t  rx_buffer[SERIAL_RX_BUFFER_SIZE];
 
 static void process_rx_byte(uint8_t byte)
 {
+    /* Toggle PE10 on every byte received -- proves ISR is firing */
+    GPIOE->ODR ^= (1U << 10);
+
     switch (rx_state) {
 
         case RX_WAIT_STX:
@@ -422,9 +425,17 @@ void sendStringDB(uint8_t *pt, SerialPort *serial_port)
 
 void USART1_EXTI25_IRQHandler(void)
 {
-    /* Clear framing/overrun errors */
-    if ((USART1->ISR & USART_ISR_FE) || (USART1->ISR & USART_ISR_ORE)) {
-        USART1->ICR  = USART_ICR_FECF | USART_ICR_ORECF;
+    /* Handle overrun -- read RDR to clear ORE and recover the byte */
+    if (USART1->ISR & USART_ISR_ORE) {
+        USART1->ICR = USART_ICR_ORECF;
+        uint8_t c = (uint8_t)USART1->RDR;
+        process_rx_byte(c);
+        return;
+    }
+
+    /* Clear framing error if set */
+    if (USART1->ISR & USART_ISR_FE) {
+        USART1->ICR  = USART_ICR_FECF;
         rx_state     = RX_WAIT_STX;
         return;
     }

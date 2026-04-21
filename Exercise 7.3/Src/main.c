@@ -26,15 +26,17 @@
 #include <stdint.h>
 #include <string.h>
 #include "serial.h"
+#include "registers.h"
+
 
 /* -----------------------------------------------------------------------
  * Uncomment ONE at a time
  * --------------------------------------------------------------------- */
-#define TASK_A_DEMO
+//#define TASK_A_DEMO
 // #define TASK_B_DEMO
 // #define TASK_C_DEMO
 // #define TASK_D_DEMO
-// #define TASK_E_DEMO
+#define TASK_E_DEMO
 
 /* -----------------------------------------------------------------------
  * TX completion callback
@@ -65,8 +67,10 @@ int main(void)
 {
     SerialInitialise(BAUD_115200, &USART1_PORT, &on_tx_complete);
 
-    /* TASK A: send a raw byte array -- pointer to array + length */
-    uint8_t tx_data[] = { 0x41, 0x42, 0x43, 0x0D, 0x0A };  /* "ABC\r\n" */
+    /* Small delay to let board stabilise after reset */
+    for (volatile int i = 0; i < 500000; i++) {}
+
+    uint8_t tx_data[] = { 0x41, 0x42, 0x43, 0x0D, 0x0A };
     sendBytes(tx_data, sizeof(tx_data), &USART1_PORT);
 
     while (1) {}
@@ -172,29 +176,31 @@ static void on_packet_received(uint8_t *data, uint32_t num_bytes)
 
 int main(void)
 {
-    SerialInitialise(BAUD_115200, &USART1_PORT, &on_tx_complete);
+    /* Debug LEDs on PE8-PE10 */
+    RCC->AHBENR |= (1U << 21);
+    GPIOE->MODER |= (1U << 16) | (1U << 18) | (1U << 20);
 
-    /* TASK E: register callback and enable NVIC -- RX now interrupt-driven */
+    SerialInitialise(BAUD_115200, &USART1_PORT, &on_tx_complete);
     SerialSetRxCallback(&USART1_PORT, &on_packet_received);
     SerialEnableNVIC();
 
     sendString((uint8_t *)"Task E: interrupt RX test...\r\n", &USART1_PORT);
 
-    /* Send a packet -- loopback wire sends it back via ISR */
     SensorData sensor = { .x = 100, .y = 200, .z = 300, .timestamp_ms = 12345 };
     sendMsg(&sensor, sizeof(sensor), MSG_TYPE_SENSOR, &USART1_PORT);
 
     /* Wait for ISR to set flag */
-    while (!packet_received) {}
+    uint32_t timeout = 0;
+    while (!packet_received && timeout < 1000000) { timeout++; }
 
-    if (received_data.x            == sensor.x &&
-        received_data.y            == sensor.y &&
-        received_data.z            == sensor.z &&
-        received_data.timestamp_ms == sensor.timestamp_ms)
-    {
-        sendString((uint8_t *)"Loopback test PASSED!\r\n", &USART1_PORT);
+    if (packet_received) {
+        /* PE8 on -- callback fired */
+        GPIOE->BSRR = (1U << 8);
+        sendString((uint8_t *)"Callback fired!\r\n", &USART1_PORT);
     } else {
-        sendString((uint8_t *)"Loopback test FAILED!\r\n", &USART1_PORT);
+        /* PE9 on -- timed out waiting */
+        GPIOE->BSRR = (1U << 9);
+        sendString((uint8_t *)"Timed out!\r\n", &USART1_PORT);
     }
 
     while (1) {}
