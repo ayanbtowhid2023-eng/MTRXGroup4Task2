@@ -2,18 +2,15 @@
  * @file serial.h
  * @brief Serial (UART) module -- bare-metal STM32F303.
  *
- * Supports multiple USART ports via a SerialPort struct.
- * Port-specific pin/clock details are defined in serial.c.
- *
  * Two port instances:
  *   USART1_PORT -- debug output to PC   (PC10=TX, PC11=RX, AF7)
  *   USART3_PORT -- board-to-board Ex5   (PC10=TX, PC11=RX, AF7)
  *
- * Task a) -- SerialInitialise, SerialOutputChar, SerialReadChar
- * Task b) -- SerialOutputString (debug string)
- * Task c) -- sendMsg (structured packet TX)
- * Task d) -- receiveMsg with callback (polling RX)
- * Task e) -- interrupt-driven RX with state machine
+ * Task a) -- sendBytes / receiveBytes (raw byte array send/receive)
+ * Task b) -- sendString (debug string)
+ * Task c) -- sendMsg (structured framed packet TX)
+ * Task d) -- receiveMsg (polling RX with checksum + callback)
+ * Task e) -- interrupt-driven RX (replaces polling receiveMsg)
  * Task f) -- interrupt-driven TX with double buffer (advanced)
  *
  * Packet format (tasks c/d/e):
@@ -65,7 +62,7 @@ extern SerialPort USART3_PORT;
  * --------------------------------------------------------------------- */
 
 /**
- * @brief Called when TX buffer completes transmission.
+ * @brief Called when TX completes.
  * @param bytes_sent  Number of bytes transmitted.
  */
 typedef void (*SerialTxCallback)(uint32_t bytes_sent);
@@ -79,13 +76,13 @@ typedef void (*SerialTxCallback)(uint32_t bytes_sent);
 typedef void (*SerialRxCallback)(uint8_t *data, uint32_t num_bytes);
 
 /* -----------------------------------------------------------------------
- * Task a) -- initialise and basic char send/receive
+ * Initialisation
  * --------------------------------------------------------------------- */
 
 /**
  * @brief  Initialise a USART port.
- * @param  baudRate           One of the BAUD_* constants.
- * @param  serial_port        Pointer to port instance.
+ * @param  baudRate            One of the BAUD_* constants.
+ * @param  serial_port         Pointer to port instance.
  * @param  completion_function Called after TX completes. NULL to disable.
  */
 void SerialInitialise(uint32_t baudRate,
@@ -93,26 +90,22 @@ void SerialInitialise(uint32_t baudRate,
                       void (*completion_function)(uint32_t));
 
 /**
- * @brief  Transmit a single byte (polling).
- * @param  data         Byte to send.
- * @param  serial_port  Port to use.
+ * @brief  Enable USART1 interrupt in NVIC.
+ *         Call after SerialInitialise() for interrupt-driven operation.
  */
-void SerialOutputChar(uint8_t data, SerialPort *serial_port);
+void SerialEnableNVIC(void);
+
+/* -----------------------------------------------------------------------
+ * Task a) -- raw byte send/receive
+ * --------------------------------------------------------------------- */
 
 /**
- * @brief  Read a single byte (polling, blocks until available).
- * @param  serial_port  Port to read from.
- * @return Received byte.
- */
-uint8_t SerialReadChar(SerialPort *serial_port);
-
-/**
- * @brief  Send an array of bytes (polling).
+ * @brief  Send an array of bytes over a serial port (polling).
  * @param  data         Pointer to byte array.
  * @param  len          Number of bytes to send.
  * @param  serial_port  Port to use.
  */
-void SerialSendBytes(uint8_t *data, uint32_t len, SerialPort *serial_port);
+void sendBytes(uint8_t *data, uint32_t len, SerialPort *serial_port);
 
 /**
  * @brief  Receive an array of bytes (polling, blocks until len bytes received).
@@ -120,7 +113,7 @@ void SerialSendBytes(uint8_t *data, uint32_t len, SerialPort *serial_port);
  * @param  len          Number of bytes to receive.
  * @param  serial_port  Port to use.
  */
-void SerialReceiveBytes(uint8_t *buf, uint32_t len, SerialPort *serial_port);
+void receiveBytes(uint8_t *buf, uint32_t len, SerialPort *serial_port);
 
 /* -----------------------------------------------------------------------
  * Task b) -- debug string
@@ -131,7 +124,7 @@ void SerialReceiveBytes(uint8_t *buf, uint32_t len, SerialPort *serial_port);
  * @param  pt           Pointer to null-terminated string.
  * @param  serial_port  Port to use.
  */
-void SerialOutputString(uint8_t *pt, SerialPort *serial_port);
+void sendString(uint8_t *pt, SerialPort *serial_port);
 
 /* -----------------------------------------------------------------------
  * Task c) -- structured packet TX
@@ -150,22 +143,32 @@ void sendMsg(void *data, uint8_t size, uint8_t msg_type,
              SerialPort *serial_port);
 
 /* -----------------------------------------------------------------------
- * Task d/e) -- structured packet RX with callback
+ * Task d) -- polling RX with checksum + callback
  * --------------------------------------------------------------------- */
 
 /**
- * @brief  Register a callback for completed packet reception.
- *         Called from ISR when a complete valid packet arrives.
- * @param  serial_port  Port to register on.
- * @param  callback     Function to call. NULL to disable.
+ * @brief  Receive a framed packet (polling).
+ *         Reads bytes until ETX received, verifies BCC checksum,
+ *         then calls callback with received body bytes.
+ *
+ * @param  serial_port  Port to receive on.
+ * @param  callback     Called with (data, num_bytes) on valid packet.
  */
-void SerialSetRxCallback(SerialPort *serial_port, SerialRxCallback callback);
+void receiveMsg(SerialPort *serial_port, SerialRxCallback callback);
+
+/* -----------------------------------------------------------------------
+ * Task e) -- interrupt-driven RX (replaces polling receiveMsg)
+ * --------------------------------------------------------------------- */
 
 /**
- * @brief  Enable USART1 interrupt in NVIC.
- *         Call after SerialInitialise().
+ * @brief  Register a callback for interrupt-driven packet reception.
+ *         Once registered, packets are received automatically via ISR.
+ *         Call SerialEnableNVIC() to activate.
+ *
+ * @param  serial_port  Port to register on.
+ * @param  callback     Called on valid packet receipt. NULL to disable.
  */
-void SerialEnableNVIC(void);
+void SerialSetRxCallback(SerialPort *serial_port, SerialRxCallback callback);
 
 /* -----------------------------------------------------------------------
  * Task f) -- interrupt-driven TX with double buffer (advanced)
@@ -173,10 +176,11 @@ void SerialEnableNVIC(void);
 
 /**
  * @brief  Send a string using interrupt-driven double-buffered TX.
+ *         Returns immediately -- does not block.
  * @param  pt           Pointer to null-terminated string.
  * @param  serial_port  Port to use.
  */
-void SerialOutputStringDB(uint8_t *pt, SerialPort *serial_port);
+void sendStringDB(uint8_t *pt, SerialPort *serial_port);
 
 /* Exposed so main can wait for TX to finish */
 extern volatile uint8_t is_transmitting;
