@@ -105,6 +105,11 @@ void SerialInitialise(uint32_t baudRate,
             break;
     }
 
+    /* Ensure TXEIE is disabled at init -- enabling it here causes the ISR
+     * to fire immediately since TXE is always set when the TX is idle.
+     * TXEIE is only enabled by sendStringDB() when there is data to send. */
+    serial_port->UART->CR1 &= ~USART_CR1_TXEIE;
+
     /* Enable TX, RX and UART */
     serial_port->UART->CR1 |= USART_CR1_TE | USART_CR1_RE | USART_CR1_UE;
 }
@@ -230,10 +235,10 @@ void receiveMsg(SerialPort *serial_port, SerialRxCallback callback)
 
     static uint8_t rx_buf[SERIAL_RX_BUFFER_SIZE];
     uint8_t byte;
-    uint8_t expected_len  = 0;
-    uint8_t msg_type      = 0;
+    uint8_t expected_len   = 0;
+    uint8_t msg_type       = 0;
     uint8_t bytes_received = 0;
-    uint8_t bcc_calc      = 0;
+    uint8_t bcc_calc       = 0;
 
     /* Wait for STX */
     do {
@@ -243,20 +248,20 @@ void receiveMsg(SerialPort *serial_port, SerialRxCallback callback)
 
     /* Read LEN */
     while ((serial_port->UART->ISR & USART_ISR_RXNE) == 0) {}
-    expected_len = (uint8_t)serial_port->UART->RDR;
-    bcc_calc ^= expected_len;
+    expected_len  = (uint8_t)serial_port->UART->RDR;
+    bcc_calc     ^= expected_len;
 
     /* Read TYPE */
     while ((serial_port->UART->ISR & USART_ISR_RXNE) == 0) {}
-    msg_type  = (uint8_t)serial_port->UART->RDR;
-    bcc_calc ^= msg_type;
+    msg_type   = (uint8_t)serial_port->UART->RDR;
+    bcc_calc  ^= msg_type;
     (void)msg_type;
 
     /* Read BODY */
     for (uint8_t i = 0; i < expected_len; i++) {
         while ((serial_port->UART->ISR & USART_ISR_RXNE) == 0) {}
-        rx_buf[i] = (uint8_t)serial_port->UART->RDR;
-        bcc_calc ^= rx_buf[i];
+        rx_buf[i]  = (uint8_t)serial_port->UART->RDR;
+        bcc_calc  ^= rx_buf[i];
         bytes_received++;
     }
 
@@ -291,7 +296,7 @@ void SerialSetRxCallback(SerialPort *serial_port, SerialRxCallback callback)
     serial_port->UART->CR1 |= USART_CR1_RXNEIE;
 }
 
-/* Packet state machine state */
+/* Packet state machine */
 typedef enum {
     RX_WAIT_STX  = 0,
     RX_WAIT_LEN  = 1,
@@ -331,9 +336,9 @@ static void process_rx_byte(uint8_t byte)
             break;
 
         case RX_WAIT_TYPE:
-            rx_msg_type   = byte;
-            rx_bcc_calc  ^= byte;
-            rx_state      = RX_READ_BODY;
+            rx_msg_type  = byte;
+            rx_bcc_calc ^= byte;
+            rx_state     = RX_READ_BODY;
             (void)rx_msg_type;
             break;
 
@@ -448,7 +453,7 @@ void USART1_EXTI25_IRQHandler(void)
 
             is_transmitting = 0;
 
-            /* If more data was filled during transmission, swap and restart */
+            /* If more data filled during transmission, swap and restart */
             if (fill_index > 0) {
                 volatile uint8_t *temp = fill_buffer;
                 fill_buffer     = transmit_buffer;
