@@ -1,0 +1,23 @@
+2026-04-16 08:05:46,409 [INFO] Activator:176 - 
+
+
+2026-04-16 08:05:46,410 [INFO] Activator:177 - !SESSION log4j initialized
+2026-04-16 08:05:47,362 [INFO] LogOutputStream:77 - [STDOUT_REDIRECT] 
+2026-04-16 08:05:47,449 [INFO] LogOutputStream:77 - [STDOUT_REDIRECT] Start the detection of the machine's architecture
+2026-04-16 08:05:47,452 [INFO] LogOutputStream:77 - [STDOUT_REDIRECT] use arm architecture
+2026-04-16 08:05:47,453 [INFO] LogOutputStream:77 - [STDOUT_REDIRECT] Architecture: Apple Silicon (ARM64)
+2026-04-16 08:06:52,475 [ERROR] LogOutputStream:75 - [STDERR_REDIRECT] 
+2026-04-16 10:02:24,956 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
+2026-04-16 10:02:44,319 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
+2026-04-16 10:02:46,334 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
+2026-04-16 10:02:46,654 [INFO] LogOutputStream:77 - [STDOUT_REDIRECT] ***WARNING: Display must be created on main thread due to Cocoa restrictions. Use vmarg -XstartOnFirstThread
+2026-04-16 10:02:46,791 [INFO] LogOutputStream:77 - [STDOUT_REDIRECT] ***WARNING: Display must be created on main thread due to Cocoa restrictions. Use vmarg -XstartOnFirstThread
+2026-04-16 10:02:57,107 [INFO] Activator:176 - 
+
+
+2026-04-16 10:02:57,108 [INFO] Activator:177 - !SESSION log4j initialized
+2026-04-16 10:02:59,302 [INFO] LogOutputStream:77 - [STDOUT_REDIRECT] 
+2026-04-16 10:02:59,403 [INFO] LogOutputStream:77 - [STDOUT_REDIRECT] Start the detection of the machine's architecture
+2026-04-16 10:02:59,410 [INFO] LogOutputStream:77 - [STDOUT_REDIRECT] use arm architecture
+2026-04-16 10:02:59,410 [INFO] LogOutputStream:77 - [STDOUT_REDIRECT] Architecture: Apple Silicon (ARM64)
+2026-04-16 10:03:45,920 [ERROR] LogOutputStream:75 - [STDERR_REDIRECT] 

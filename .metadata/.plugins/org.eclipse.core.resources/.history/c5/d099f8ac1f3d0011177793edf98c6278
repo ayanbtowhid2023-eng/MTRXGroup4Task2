@@ -123,7 +123,4 @@ void USART1_EXTI25_IRQHandler(void);
 int     SerialInputAvailable(SerialPort *serial_port);
 uint8_t SerialReadChar(SerialPort *serial_port);
 
-/* Exposed so main can wait for TX to complete before sending a packet */
-extern volatile uint8_t is_transmitting;
-
 #endif /* SERIAL_PORT_HEADER */

@@ -116,10 +116,8 @@ void SerialInitialise(uint32_t baudRate,
     serial_port->GPIO->AFR[0]  |= serial_port->SerialPinAlternatePinValueLow;
     serial_port->GPIO->AFR[1]  |= serial_port->SerialPinAlternatePinValueHigh;
 
-    serial_port->UART->CR1 |= USART_CR1_RXNEIE;  /* RX interrupt - always on */
-    /* NOTE: TXEIE is NOT enabled here - only enabled by SerialOutputStringDB
-     * when there is actually data to transmit. Enabling it here causes
-     * the IRQ to fire continuously since TXE is always set when idle. */
+    serial_port->UART->CR1 |= USART_CR1_RXNEIE;  /* RX interrupt */
+    serial_port->UART->CR1 |= USART_CR1_TXEIE;   /* TX interrupt */
 
     RCC->APB1ENR |= serial_port->MaskAPB1ENR;
     RCC->APB2ENR |= serial_port->MaskAPB2ENR;
