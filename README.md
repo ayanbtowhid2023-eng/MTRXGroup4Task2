@@ -140,8 +140,6 @@ Physical sanity checks during development:
 - Leave board still after calibration: gyro dps values sit near zero
 
 ### Notes
-- The onboard sensor is the **LSM303AGR**, not the older LSM303DLHC referenced in some BSP examples. The register map and slave addresses are different, and assuming DLHC is the main reason initial reads come back as garbage
-- I2C1 is clocked from **HSI**, not SYSCLK. `TIMINGR = 0x2000090E` is the correct value for standard-mode 100 kHz at this clock
 - I2C GPIO pins must be push-pull with pull-down resistors on this board for the sensor to respond reliably
 - The FPU is explicitly enabled in `compass_init()` via `SCB->CPACR` before any float math (`atan2f`, `sqrtf`) runs. Skipping this causes a hard fault
 - `compass_init()` runs a manual bus recovery (9 SCL clocks) before enabling the peripheral. This fixes the case where the sensor is holding SDA low after an unclean reset
