@@ -1,3 +1,2 @@
-Src/main.o: ../Src/main.c ../Inc/serial.h ../Inc/registers.h
+Src/main.o: ../Src/main.c ../Inc/serial.h
 ../Inc/serial.h:
-../Inc/registers.h:
