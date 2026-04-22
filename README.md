@@ -25,18 +25,111 @@ Remy:
 
 ## Exercise 7.1 - Digital I/O
 
-### Summary
+# MTRX2700 — Exercise 7.1: Digital I/O
+## STM32F3 Discovery Board
 
-### Usage
 
-### Valid input
+## Summary
+On power-on LED3 lights. Each press of the blue button steps to the next LED (LED3 → LED4 → ... → LED10 → LED3). Nothing moves without a button press. All LED changes are driven by the button interrupt — the `while(1)` loop in `main.c` is empty.
 
-### Functions and modularity
 
-### Testing
+---
 
-### Notes
+## Usage
 
+1. Create a new STM32CubeIDE project targeting `STM32F303VCTx`
+2. Copy all `Inc/` files into the project `Inc/` folder
+3. Copy all `Src/` files into the project `Src/` folder, replacing the generated `main.c`
+4. Set include path to `../Inc` only
+5. Build and flash
+
+To demo Task C — in `on_button_press()` comment out `led_set_rate_limited()` and uncomment `discovery_led_set()`
+
+To demo Task E — leave `led_set_rate_limited()` in (default as delivered)
+
+---
+
+
+## Functions and Modularity
+
+
+### gpio.h / gpio.c
+Generic GPIO module. Works on any port and pin. No board-specific knowledge.
+
+- **`gpio_init(port, pin, direction)`** — enables peripheral clock, sets MODER register
+- **`gpio_write(port, pin, state)`** — drives pin high or low via BSRR register
+- **`gpio_read(port, pin, *state)`** — reads current pin state from IDR register
+- **'gpio_init_af(port, pin, af)`** — sets alternate function mode for UART/I2C/PWM in Exercise 5
+- All functions validate inputs and return -1 on error
+
+### led.h / led.c
+Generic LED module. Pin assignments injected at init time via `LED_Descriptor` array — no hardcoded pins in this file.
+
+- **`led_init(descriptors, count, callback)`** — configures all LEDs as outputs, registers optional change callback
+- **`led_set(id, state)`** / **`led_get(id)`** — only access points to private `led_state[]`
+- **`led_clear_all()`** — turns all LEDs off
+- **`led_set_single(id)`** — lights one LED, clears all others, used by Exercise 5 for compass heading display
+- `led_state[]` is declared `static` — completely private to `led.c`, inaccessible from any other file
+
+### button.h / button.c
+Generic button module. All hardware details injected via `Button_Descriptor` at init time.
+
+- **`button_init(descriptor, callback)`** — configures EXTI interrupt on given pin, registers callback
+- **`button_read()`** — polls current pin state without using interrupts
+- **`button_get_flag()`** / **`button_clear_flag()`** — non-ISR press detection used by Exercise 5
+- **`EXTI0_IRQHandler`** — clears pending flag, sets press flag, calls registered callback
+
+### discovery.h / discovery.c
+The only file with board-specific knowledge. Knows PE8–PE15 are LEDs and PA0 is the button. All other modules are generic and work unchanged on any other board.
+
+- **`discovery_init(callback)`** — single call sets up all 8 LEDs and the button with correct board pins
+- **`discovery_led_set(id, state)`** / **`discovery_led_get(id)`** / **`discovery_led_clear_all()`** — LED access
+- **`discovery_led_set_single(id)`** — lights one LED, clears all others, used by Exercise 5
+- **`discovery_button_pressed()`** — one-shot flag read, auto-clears on read, used by Exercise 5
+
+### led_timer.h / led_timer.c
+TIM2 configured at 1ms tick (8MHz HSI, PSC=7999, ARR=1). Provides the system clock and LED rate limiter.
+
+- **`led_timer_init(min_interval_ms)`** — starts TIM2, sets minimum allowed interval between LED changes
+- **`led_set_rate_limited(id, state)`** — queues an LED change and returns immediately, never blocks
+- **`get_tick()`** — returns ms since init, used by Exercise 4 for sensor data timestamps
+- **`TIM2_IRQHandler`** — increments tick every 1ms, applies queued LED change once interval has elapsed
+
+### main.c
+Initialises all modules, lights LED3 on startup, then sits in an empty `while(1)`. All behaviour is interrupt driven.
+
+- **`on_button_press()`** — ISR callback, reads current LED state via `discovery_led_get()`, steps to next LED
+
+---
+
+## Testing
+
+| Test | Expected Result | Pass/Fail |
+|------|----------------|-----------|
+| Power on | LED3 lit, all others off | |
+| Single button press | Steps to next LED in sequence | |
+| Full sequence — 8 presses | Returns to LED3 after LED10 | |
+| Rapid button presses | Steps at most once per 200ms | |
+| Swap to `discovery_led_set` in callback | Responds instantly to every press | |
+| Comment out `discovery_led_get` in callback | LEDs still step correctly | |
+| `gpio_init` called with NULL port | Returns -1, no crash | |
+| `gpio_init` called with pin > 15 | Returns -1, no crash | |
+| `led_set` called with id > 7 | Returns -1, no crash | |
+| `led_get` called with id > 7 | Returns -1, no crash | |
+
+---
+
+## Notes
+
+
+What would happen if many different software modules can make changes to the LEDs?
+All changes must go through led_set() — the single write path into the private led_state[] array. No module can corrupt another's LED state without going through this defined interface. Without this controlled access, multiple modules writing to the LEDs at the same time would produce unpredictable behaviour where one module silently overwrites another's changes.
+
+What would happen if the button handling callback function takes a long time to complete?
+The callback runs inside the ISR. A long callback blocks other interrupts at equal or lower priority from firing, can cause missed button presses, and stops the TIM2 tick from incrementing which breaks all timing across the system. The callback is kept minimal — it only reads the current LED state and queues a request via led_set_rate_limited(), which returns immediately.
+
+What checks do you need to consider when setting up or using a GPIO pin for input or output?
+gpio_init validates that the port pointer is not NULL, the pin number is between 0 and 15, and the port is one of the six known valid ports before enabling its clock. For input pins a pull-down is configured so the pin reads LOW when floating rather than returning an undefined value. All functions return -1 on any failure so the caller can detect and handle errors rather than silently proceeding with a misconfigured pin.
 ## Exercise 7.2 - Timer Interface
 
 ### Summary
@@ -51,26 +144,155 @@ This part is separated into c files:
 - One_shot.c - Triggers a single delayed callback using TIM4 which fires after a given delay and stops permanently.
 
 This part also features the header files:
-- Registers.h - From exercise 7.1. Defines the registers of the STM32 Discovery board, which may be accessed and interacted with to allow for specific functionality.
 - Gpio.h - From exercise 7.1 to define the funcitons that allow for general purpose input and output
 - Timer.h - Defines functions used in timer.c
 - Servo.h - Defines functions used in servo.c
 - One_shot.h - Defines funcitons used in one_shot.c
+- Stm32f303xc.h - Contains all information about registers and GPIO
 
-The main function is where the demonstrate parts A, B, C and D. The demonstrations may occur by 'un-commenting out' one of the following
+The main function is where we  may demonstrate parts A, B, C and D. The demonstrations may occur by 'un-commenting out' one of the following:
 ```c
 // #define TASK_A_DEMO
 // #define TASK_C_DEMO
 // #define TASK_D_DEMO
 ```
+Task B is demonstrated by uncommening `#define TASK_A_DEMO` and in the main code for the Task A demoing section uncommenting:
+```
+// uint32_t current = timer_get_period_ms();  // Gets the current period
+// (void)current; // Removes memory warning
+// timer_set_period_ms(100); // Sets the new period
+```
+
+####Task A Demo
+- 
+
+####Task B Demo
+- 
+
+####Task C Demo
+- 
+
+####Task D Demo
+- 
+
 
 ### Valid input
 
+## `timer_init(uint32_t period_ms, TimerCallback callback)`
+ 
+| Parameter | Valid Range | Invalid | Notes |
+|-----------|-------------|---------|-------|
+| `period_ms` | 1 – 4,294,967,295 | 0 (clamped to 1) | Sets ARR = period_ms - 1 |
+| `callback` | Any valid function pointer | `NULL` | NULL disables callback, timer still runs |
+ 
+---
+ 
+## `timer_set_period_ms(uint32_t new_period_ms)`
+ 
+| Parameter | Valid Range | Invalid | Notes |
+|-----------|-------------|---------|-------|
+| `new_period_ms` | 1 – 4,294,967,295 | 0 (sets ARR to 0xFFFFFFFF) | No clamping — caller must ensure ≥ 1 |
+ 
+---
+ 
+## `timer_get_period_ms(void)`
+ 
+| Return Value | Range | Notes |
+|--------------|-------|-------|
+| `uint32_t` | 1 – 4,294,967,295 | Returns 0 if called before `timer_init()` |
+ 
+---
+ 
+## `timer_set_callback(TimerCallback callback)`
+ 
+| Parameter | Valid Range | Invalid | Notes |
+|-----------|-------------|---------|-------|
+| `callback` | Any valid function pointer | `NULL` | NULL disables callback without stopping timer |
+ 
+---
+ 
+## `one_shot_trigger(uint32_t delay_ms, OneShotCallback callback)`
+ 
+| Parameter | Valid Range | Invalid | Notes |
+|-----------|-------------|---------|-------|
+| `delay_ms` | 1 – 4,294,967,295 | 0 (clamped to 1) | Sets ARR = delay_ms - 1 |
+| `callback` | Any valid function pointer | `NULL` | NULL means ISR fires but does nothing |
+ 
+---
+ 
+## `servo_init(void)`
+ 
+| Parameter | Valid Range | Notes |
+|-----------|-------------|-------|
+| None | — | Always resets to centre (1500 us). Safe to call multiple times. |
+ 
+---
+ 
+## `servo_set_position(uint32_t pulse_us)`
+ 
+| Parameter | Valid Range | Clamped Range | Notes |
+|-----------|-------------|---------------|-------|
+| `pulse_us` | 1000 – 2000 | < 1000 → 1000, > 2000 → 2000 | 1000 = full CW, 1500 = centre, 2000 = full CCW |
+ 
+---
+ 
+## `servo_get_position_us(void)`
+ 
+| Return Value | Range | Notes |
+|--------------|-------|-------|
+| `uint32_t` | 1000 – 2000 | Returns `SERVO_POS_CENTRE_US` (1500) if called before `servo_init()` |
+
+
 ### Functions and modularity
+#### timer.c
+First we define `period_ms` and `cb` which represent the period of the timer and the callback function pointer respectively. These are only accessible in this file, and must use get and set functions to access externally.
+
+`TIM_IRQHandler`
+- This is the interrupt request handler, which runs the callback function after the interrupt has been fired. This is also inaccessible outside of this file. The use of a callback function allows for greater modularity as any function may be called once the interrupt is fired. We use TIM3 for this functionality.
+
+`timer_init`
+- This initialises the timer, such that each 'tick' of the clock occurs every millisecond and the counter counts up to the given period before another interrupt is fired once configuration is completed.
+
+`void timer_set_period_ms`
+- Set function that allows for the period (set/inaccessible variable in file) to be changed. Writes the new period also into the Auto Reload Register, such that the counter may count up to this value before firing the next interrupt. 
+
+`timer_get_period_ms`
+- Allows us to read the inaccessible/private period value outside of this module file.
+
+`timer_set_callback`
+- Set function that allows for the callback function to be changed.
+
+#### servo.c
+`pulse_us = SERVO_POS_CENTRE_US` is statically defined to define the centre position of the servo.
+
+`servo_init`
+- Resets the pulse width to match the centre posiiton each time the servo is initialised
+- We enable TIM3 as the clock and configuring the hardware for PWM mode. The clock and auto-reload register is scaled such that each 'tick' corresponds to 1ms and the period of each pulse is 20ms (5Hz frequency).
+- CCER (Capture Compare Enable Register) is also enabled such that the PWM signal is outputted via pin PA6. 
+- Once all configuration occurs, then the timer may begin.
+
+`servo_set_position`
+- Sets new pulse as the pulse fed into the timer and writes it directly into CCR1 for the new pulse width to be appended during the next cycle.
+
+`servo_get_position`
+- 'Get' function that allows us to read the position value/ the pulse width externally.
+
+#### one_shot.c
+`stored_callback` is privately initialised to NULL. This is the function pointer for the callback funciton.
+
+`TIM4_IRQHandler`
+- Handles the interrupt request. This interrupt is fired by the counter overflowing
+- Once the counter overflows, we clear the counter enable bit such that the funciton is only called once with ` TIM4->CR1 &= ~TIM_CR1_CEN;`
+- The callback function is then called
+
+`one_shot_trigger`
+- Enables the TIM4 clock and scales such that each tick is 1 ms.
+- Once the timer and interrupts are properly configured the counter is enabled.
 
 ### Testing
 
 ### Notes
+
 
 ## Exercise 7.3 - Serial Interface
 
