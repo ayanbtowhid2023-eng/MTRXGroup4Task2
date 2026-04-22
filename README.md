@@ -743,7 +743,7 @@ Shared header included by both Board 1 and Board 2 projects. Defines the message
 **`on_tx_complete(uint32_t bytes_sent)`**
 - Completion callback required by `SerialInitialise()` for USART1
 - Does nothing - included to satisfy the serial module interface
-#### Reused modules (unchanged from earlier exercises)
+#### Reused modules 
  
 | Module | Source | Role in Ex5 |
 |--------|--------|-------------|
