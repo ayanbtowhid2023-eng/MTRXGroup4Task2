@@ -1,3 +1,4 @@
+"./Src/accel.o"
 "./Src/button.o"
 "./Src/compass.o"
 "./Src/discovery.o"
