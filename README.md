@@ -25,12 +25,12 @@ Remy:
 
 ## Exercise 7.1 - Digital I/O
 
-# MTRX2700 — Exercise 7.1: Digital I/O
+# MTRX2700 - Exercise 7.1: Digital I/O
 ## STM32F3 Discovery Board
 
 
 ## Summary
-On power-on LED3 lights. Each press of the blue button steps to the next LED (LED3 → LED4 → ... → LED10 → LED3). Nothing moves without a button press. All LED changes are driven by the button interrupt — the `while(1)` loop in `main.c` is empty.
+On power-on LED3 lights. Each press of the blue button steps to the next LED (LED3 → LED4 → ... → LED10 → LED3). Nothing moves without a button press. All LED changes are driven by the button interrupt - the `while(1)` loop in `main.c` is empty.
 
 
 ---
@@ -43,9 +43,9 @@ On power-on LED3 lights. Each press of the blue button steps to the next LED (LE
 4. Set include path to `../Inc` only
 5. Build and flash
 
-To demo Task C — in `on_button_press()` comment out `led_set_rate_limited()` and uncomment `discovery_led_set()`
+To demo Task C - in `on_button_press()` comment out `led_set_rate_limited()` and uncomment `discovery_led_set()`
 
-To demo Task E — leave `led_set_rate_limited()` in (default as delivered)
+To demo Task E - leave `led_set_rate_limited()` in (default as delivered)
 
 ---
 
@@ -56,49 +56,49 @@ To demo Task E — leave `led_set_rate_limited()` in (default as delivered)
 ### gpio.h / gpio.c
 Generic GPIO module. Works on any port and pin. No board-specific knowledge.
 
-- **`gpio_init(port, pin, direction)`** — enables peripheral clock, sets MODER register
-- **`gpio_write(port, pin, state)`** — drives pin high or low via BSRR register
-- **`gpio_read(port, pin, *state)`** — reads current pin state from IDR register
-- **'gpio_init_af(port, pin, af)`** — sets alternate function mode for UART/I2C/PWM in Exercise 5
+- **`gpio_init(port, pin, direction)`** - enables peripheral clock, sets MODER register
+- **`gpio_write(port, pin, state)`** - drives pin high or low via BSRR register
+- **`gpio_read(port, pin, *state)`** - reads current pin state from IDR register
+- **'gpio_init_af(port, pin, af)`** - sets alternate function mode for UART/I2C/PWM in Exercise 5
 - All functions validate inputs and return -1 on error
 
 ### led.h / led.c
-Generic LED module. Pin assignments injected at init time via `LED_Descriptor` array — no hardcoded pins in this file.
+Generic LED module. Pin assignments injected at init time via `LED_Descriptor` array - no hardcoded pins in this file.
 
-- **`led_init(descriptors, count, callback)`** — configures all LEDs as outputs, registers optional change callback
-- **`led_set(id, state)`** / **`led_get(id)`** — only access points to private `led_state[]`
-- **`led_clear_all()`** — turns all LEDs off
-- **`led_set_single(id)`** — lights one LED, clears all others, used by Exercise 5 for compass heading display
-- `led_state[]` is declared `static` — completely private to `led.c`, inaccessible from any other file
+- **`led_init(descriptors, count, callback)`** - configures all LEDs as outputs, registers optional change callback
+- **`led_set(id, state)`** / **`led_get(id)`** - only access points to private `led_state[]`
+- **`led_clear_all()`** - turns all LEDs off
+- **`led_set_single(id)`** - lights one LED, clears all others, used by Exercise 5 for compass heading display
+- `led_state[]` is declared `static` - completely private to `led.c`, inaccessible from any other file
 
 ### button.h / button.c
 Generic button module. All hardware details injected via `Button_Descriptor` at init time.
 
-- **`button_init(descriptor, callback)`** — configures EXTI interrupt on given pin, registers callback
-- **`button_read()`** — polls current pin state without using interrupts
-- **`button_get_flag()`** / **`button_clear_flag()`** — non-ISR press detection used by Exercise 5
-- **`EXTI0_IRQHandler`** — clears pending flag, sets press flag, calls registered callback
+- **`button_init(descriptor, callback)`** - configures EXTI interrupt on given pin, registers callback
+- **`button_read()`** - polls current pin state without using interrupts
+- **`button_get_flag()`** / **`button_clear_flag()`** - non-ISR press detection used by Exercise 5
+- **`EXTI0_IRQHandler`** - clears pending flag, sets press flag, calls registered callback
 
 ### discovery.h / discovery.c
 The only file with board-specific knowledge. Knows PE8–PE15 are LEDs and PA0 is the button. All other modules are generic and work unchanged on any other board.
 
-- **`discovery_init(callback)`** — single call sets up all 8 LEDs and the button with correct board pins
-- **`discovery_led_set(id, state)`** / **`discovery_led_get(id)`** / **`discovery_led_clear_all()`** — LED access
-- **`discovery_led_set_single(id)`** — lights one LED, clears all others, used by Exercise 5
-- **`discovery_button_pressed()`** — one-shot flag read, auto-clears on read, used by Exercise 5
+- **`discovery_init(callback)`** - single call sets up all 8 LEDs and the button with correct board pins
+- **`discovery_led_set(id, state)`** / **`discovery_led_get(id)`** / **`discovery_led_clear_all()`** - LED access
+- **`discovery_led_set_single(id)`** - lights one LED, clears all others, used by Exercise 5
+- **`discovery_button_pressed()`** - one-shot flag read, auto-clears on read, used by Exercise 5
 
 ### led_timer.h / led_timer.c
 TIM2 configured at 1ms tick (8MHz HSI, PSC=7999, ARR=1). Provides the system clock and LED rate limiter.
 
-- **`led_timer_init(min_interval_ms)`** — starts TIM2, sets minimum allowed interval between LED changes
-- **`led_set_rate_limited(id, state)`** — queues an LED change and returns immediately, never blocks
-- **`get_tick()`** — returns ms since init, used by Exercise 4 for sensor data timestamps
-- **`TIM2_IRQHandler`** — increments tick every 1ms, applies queued LED change once interval has elapsed
+- **`led_timer_init(min_interval_ms)`** - starts TIM2, sets minimum allowed interval between LED changes
+- **`led_set_rate_limited(id, state)`** - queues an LED change and returns immediately, never blocks
+- **`get_tick()`** - returns ms since init, used by Exercise 4 for sensor data timestamps
+- **`TIM2_IRQHandler`** - increments tick every 1ms, applies queued LED change once interval has elapsed
 
 ### main.c
 Initialises all modules, lights LED3 on startup, then sits in an empty `while(1)`. All behaviour is interrupt driven.
 
-- **`on_button_press()`** — ISR callback, reads current LED state via `discovery_led_get()`, steps to next LED
+- **`on_button_press()`** - ISR callback, reads current LED state via `discovery_led_get()`, steps to next LED
 
 ---
 
@@ -108,7 +108,7 @@ Initialises all modules, lights LED3 on startup, then sits in an empty `while(1)
 |------|----------------|-----------|
 | Power on | LED3 lit, all others off | |
 | Single button press | Steps to next LED in sequence | |
-| Full sequence — 8 presses | Returns to LED3 after LED10 | |
+| Full sequence - 8 presses | Returns to LED3 after LED10 | |
 | Rapid button presses | Steps at most once per 200ms | |
 | Swap to `discovery_led_set` in callback | Responds instantly to every press | |
 | Comment out `discovery_led_get` in callback | LEDs still step correctly | |
@@ -123,10 +123,10 @@ Initialises all modules, lights LED3 on startup, then sits in an empty `while(1)
 
 
 What would happen if many different software modules can make changes to the LEDs?
-All changes must go through led_set() — the single write path into the private led_state[] array. No module can corrupt another's LED state without going through this defined interface. Without this controlled access, multiple modules writing to the LEDs at the same time would produce unpredictable behaviour where one module silently overwrites another's changes.
+All changes must go through led_set() - the single write path into the private led_state[] array. No module can corrupt another's LED state without going through this defined interface. Without this controlled access, multiple modules writing to the LEDs at the same time would produce unpredictable behaviour where one module silently overwrites another's changes.
 
 What would happen if the button handling callback function takes a long time to complete?
-The callback runs inside the ISR. A long callback blocks other interrupts at equal or lower priority from firing, can cause missed button presses, and stops the TIM2 tick from incrementing which breaks all timing across the system. The callback is kept minimal — it only reads the current LED state and queues a request via led_set_rate_limited(), which returns immediately.
+The callback runs inside the ISR. A long callback blocks other interrupts at equal or lower priority from firing, can cause missed button presses, and stops the TIM2 tick from incrementing which breaks all timing across the system. The callback is kept minimal - it only reads the current LED state and queues a request via led_set_rate_limited(), which returns immediately.
 
 What checks do you need to consider when setting up or using a GPIO pin for input or output?
 gpio_init validates that the port pointer is not NULL, the pin number is between 0 and 15, and the port is one of the six known valid ports before enabling its clock. For input pins a pull-down is configured so the pin reads LOW when floating rather than returning an undefined value. All functions return -1 on any failure so the caller can detect and handle errors rather than silently proceeding with a misconfigured pin.
@@ -200,7 +200,7 @@ _Task D Demo_
  
 | Parameter | Valid Range | Invalid | Notes |
 |-----------|-------------|---------|-------|
-| `new_period_ms` | 1 – 4,294,967,295 | 0 (sets ARR to 0xFFFFFFFF) | No clamping — caller must ensure ≥ 1 |
+| `new_period_ms` | 1 – 4,294,967,295 | 0 (sets ARR to 0xFFFFFFFF) | No clamping - caller must ensure ≥ 1 |
  
 ---
  
@@ -233,7 +233,7 @@ _Task D Demo_
  
 | Parameter | Valid Range | Notes |
 |-----------|-------------|-------|
-| None | — | Always resets to centre (1500 us). Safe to call multiple times. |
+| None | - | Always resets to centre (1500 us). Safe to call multiple times. |
  
 ---
  
@@ -305,8 +305,8 @@ _Task A_
 
 | Test | Function Call | Expected Result | How to Verify |
 |------|--------------|-----------------|---------------|
-| Normal operation | `timer_init(500, on_timer_a)` | LD3 toggles every 500ms | Time 10 blinks with stopwatch — should take ~5 seconds |
-| Different period | `timer_init(100, on_timer_a)` | LD3 toggles every 100ms | Time 10 blinks with stopwatch — should take ~1 second |
+| Normal operation | `timer_init(500, on_timer_a)` | LD3 toggles every 500ms | Time 10 blinks with stopwatch - should take ~5 seconds |
+| Different period | `timer_init(100, on_timer_a)` | LD3 toggles every 100ms | Time 10 blinks with stopwatch - should take ~1 second |
 | NULL callback | `timer_init(500, NULL)` | No crash, timer runs silently, LED stays off | Board does not hang or reset |
 | Zero period (boundary) | `timer_init(0, on_timer_a)` | Clamped to 1ms, LED toggles as fast as possible | LED appears constantly on due to speed of toggling |
 
@@ -316,10 +316,10 @@ _Task B_
 
 | Test | Function Call | Expected Result | How to Verify |
 |------|--------------|-----------------|---------------|
-| Get period before set | `timer_get_period_ms()` after `timer_init(500, on_timer_a)` | Returns 500 | Set breakpoint after `timer_init`, inspect return value in debugger — should read 500 |
+| Get period before set | `timer_get_period_ms()` after `timer_init(500, on_timer_a)` | Returns 500 | Set breakpoint after `timer_init`, inspect return value in debugger - should read 500 |
 | Set new period | `timer_set_period_ms(100)` | LED visibly speeds up from 500ms to 100ms blink rate | Observe LED blink rate change immediately after call |
-| Get period after set | `timer_get_period_ms()` after `timer_set_period_ms(100)` | Returns 100 | Set breakpoint after `timer_set_period_ms`, inspect return value in debugger — should read 100 |
-| Set zero period (boundary) | `timer_set_period_ms(0)` | ARR set to 0xFFFFFFFF — very long period, LED effectively stops | LED stops toggling |
+| Get period after set | `timer_get_period_ms()` after `timer_set_period_ms(100)` | Returns 100 | Set breakpoint after `timer_set_period_ms`, inspect return value in debugger - should read 100 |
+| Set zero period (boundary) | `timer_set_period_ms(0)` | ARR set to 0xFFFFFFFF - very long period, LED effectively stops | LED stops toggling |
 
 ---
 
@@ -328,14 +328,14 @@ _Task C_
 | Test | Function Call | Expected Result | How to Verify |
 |------|--------------|-----------------|---------------|
 | Initialisation | `servo_init()` | Servo moves to centre position | Physically observe servo arm at centre (1500us) |
-| Full clockwise | `servo_set_position(SERVO_POS_MIN_US)` | Servo moves to full CW position | Physically observe servo arm at full CW — visually distinct from centre |
+| Full clockwise | `servo_set_position(SERVO_POS_MIN_US)` | Servo moves to full CW position | Physically observe servo arm at full CW - visually distinct from centre |
 | Centre position | `servo_set_position(SERVO_POS_CENTRE_US)` | Servo moves to centre position | Physically observe servo arm returns to centre |
-| Full counter-clockwise | `servo_set_position(SERVO_POS_MAX_US)` | Servo moves to full CCW position | Physically observe servo arm at full CCW — visually distinct from centre |
-| Below minimum (boundary) | `servo_set_position(500)` | Clamped to 1000us, servo moves to full CW | Call `servo_get_position_us()` immediately after — debugger should show 1000 |
-| Above maximum (boundary) | `servo_set_position(3000)` | Clamped to 2000us, servo moves to full CCW | Call `servo_get_position_us()` immediately after — debugger should show 2000 |
-| Get position | `servo_get_position_us()` after `servo_set_position(1200)` | Returns 1200 | Set breakpoint after `servo_set_position`, inspect return value in debugger — should read 1200 |
-| Get position before init | `servo_get_position_us()` before `servo_init()` | Returns `SERVO_POS_CENTRE_US` (1500) | Inspect return value in debugger — should read 1500 |
-| 50Hz period verification | Observe servo sweep loop | Servo sweeps CW → centre → CCW repeatedly | Each sweep step held for ~800000 cycles — physically verify three distinct positions are reached |
+| Full counter-clockwise | `servo_set_position(SERVO_POS_MAX_US)` | Servo moves to full CCW position | Physically observe servo arm at full CCW - visually distinct from centre |
+| Below minimum (boundary) | `servo_set_position(500)` | Clamped to 1000us, servo moves to full CW | Call `servo_get_position_us()` immediately after - debugger should show 1000 |
+| Above maximum (boundary) | `servo_set_position(3000)` | Clamped to 2000us, servo moves to full CCW | Call `servo_get_position_us()` immediately after - debugger should show 2000 |
+| Get position | `servo_get_position_us()` after `servo_set_position(1200)` | Returns 1200 | Set breakpoint after `servo_set_position`, inspect return value in debugger - should read 1200 |
+| Get position before init | `servo_get_position_us()` before `servo_init()` | Returns `SERVO_POS_CENTRE_US` (1500) | Inspect return value in debugger - should read 1500 |
+| 50Hz period verification | Observe servo sweep loop | Servo sweeps CW → centre → CCW repeatedly | Each sweep step held for ~800000 cycles - physically verify three distinct positions are reached |
 
 ---
 
@@ -343,10 +343,10 @@ _Task D_
 
 | Test | Function Call | Expected Result | How to Verify |
 |------|--------------|-----------------|---------------|
-| Normal operation | `one_shot_trigger(1000, one_shot_callback)` | LD3 turns on exactly once after 1 second | Time delay with stopwatch — should be ~1 second. LED stays on permanently after firing |
-| Fires only once | `one_shot_trigger(1000, one_shot_callback)` | LD3 turns on and never turns off | Observe LED stays on indefinitely — timer does not repeat |
+| Normal operation | `one_shot_trigger(1000, one_shot_callback)` | LD3 turns on exactly once after 1 second | Time delay with stopwatch - should be ~1 second. LED stays on permanently after firing |
+| Fires only once | `one_shot_trigger(1000, one_shot_callback)` | LD3 turns on and never turns off | Observe LED stays on indefinitely - timer does not repeat |
 | Short delay (boundary) | `one_shot_trigger(1, one_shot_callback)` | LD3 turns on almost immediately | LED turns on as fast as possible after call |
-| Zero delay (boundary) | `one_shot_trigger(0, one_shot_callback)` | Clamped to 1ms, LED turns on almost immediately | LED turns on as fast as possible — same as 1ms test |
+| Zero delay (boundary) | `one_shot_trigger(0, one_shot_callback)` | Clamped to 1ms, LED turns on almost immediately | LED turns on as fast as possible - same as 1ms test |
 | NULL callback | `one_shot_trigger(1000, NULL)` | No crash, timer fires and stops, nothing happens | Board does not hang or reset after 1 second |
 | Board reset re-trigger | Reset board, observe behaviour | LD3 stays off for 1 second then turns on again | Proves one-shot fires reliably on each power cycle, not random behaviour |
 
