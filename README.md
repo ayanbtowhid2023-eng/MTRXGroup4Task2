@@ -355,7 +355,6 @@ _Task D_
 ### Notes
 1. How much would be required to make this software module able to use different timers - as in, could you have multiple regular intervals, or multiple one-shot delays at the same time?
 Currently TIM3 and TIM4 are hardcoded to handle timer.c and one_shot.c respectively, however different timers could be used by replacing the mentions of TIM3 to TIM4 and vice versa. This can be done manually, for example in timer.c:
-# Changing `timer.c` from TIM3 to TIM4
 - `RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;` becomes `RCC->APB1ENR |= RCC_APB1ENR_TIM4EN;`
 - `TIM3->CR1 &= ~TIM_CR1_CEN;` becomes `TIM4->CR1 &= ~TIM_CR1_CEN;`
 - `TIM3->PSC = 7999;` becomes `TIM4->PSC = 7999;`
