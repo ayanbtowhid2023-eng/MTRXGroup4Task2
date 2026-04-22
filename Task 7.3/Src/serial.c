@@ -3,11 +3,8 @@
  * @file    serial.c
  * @brief   Serial (UART) module for MTRX2700 C Lab - Exercise 3
  *
- * Two port instances:
- *   USART1_PORT: USART1 on PC4(TX)/PC5(RX) - connected to ST-Link VCP
- *                Use for debug strings visible in screen terminal.
- *   USART3_PORT: USART3 on PC10(TX)/PC11(RX) - free GPIO pins
- *                Use for sendMsg/receiveMsg loopback test (jumper PC10->PC11).
+ * USART1_PORT: USART1 on PC4(TX)/PC5(RX) - ST-Link VCP -> screen terminal
+ * USART3_PORT: USART3 on PC10(TX)/PC11(RX) - packet loopback / inter-board
  *
  * Packet format:
  *   [ START(0x02) | SIZE | TYPE | BODY... | STOP(0x03) | CHECKSUM ]
@@ -36,94 +33,190 @@ struct _SerialPort {
     void (*completion_function)(uint32_t);
 };
 
-/*
- * USART1 on PC4(TX)/PC5(RX), AF7
- * Connected to ST-Link VCP -> output appears in screen terminal.
- *
- * PC4: MODER bits [9:8]   = 0b10 -> 0x200
- * PC5: MODER bits [11:10] = 0b10 -> 0x800
- * Combined MODER = 0xA00
- *
- * PC4: AFR[0] bits [19:16] = 0x7 -> 0x70000
- * PC5: AFR[0] bits [23:20] = 0x7 -> 0x700000
- * Combined AFR[0] = 0x770000
- */
+/* USART1 on PC4(TX)/PC5(RX), AF7 - connected to ST-Link VCP */
 SerialPort USART1_PORT = {
-    USART1,
-    GPIOC,
-    RCC_APB2ENR_USART1EN,
-    0x00,
-    RCC_AHBENR_GPIOCEN,
-    0x00000A00,
-    0x00000F00,
-    0x00770000,
-    0x00000000,
-    0x00
+    USART1, GPIOC,
+    RCC_APB2ENR_USART1EN, 0x00, RCC_AHBENR_GPIOCEN,
+    0x00000A00, 0x00000F00, 0x00770000, 0x00000000, 0x00
 };
 
-/*
- * USART3 on PC10(TX)/PC11(RX), AF7
- * Free GPIO pins - use for packet loopback test (jumper PC10->PC11).
- *
- * PC10: MODER bits [21:20] = 0b10 -> 0x200000
- * PC11: MODER bits [23:22] = 0b10 -> 0x800000
- * Combined MODER = 0xA00000
- *
- * PC10: AFR[1] bits [11:8]  = 0x7 -> 0x700
- * PC11: AFR[1] bits [15:12] = 0x7 -> 0x7000
- * Combined AFR[1] = 0x7700
- */
+/* USART3 on PC10(TX)/PC11(RX), AF7 - packet comms / loopback */
 SerialPort USART3_PORT = {
-    USART3,
-    GPIOC,
-    0x00,
-    RCC_APB1ENR_USART3EN,
-    RCC_AHBENR_GPIOCEN,
-    0x00A00000,
-    0x00F00000,
-    0x00000000,
-    0x00007700,
-    0x00
+    USART3, GPIOC,
+    0x00, RCC_APB1ENR_USART3EN, RCC_AHBENR_GPIOCEN,
+    0x00A00000, 0x00F00000, 0x00000000, 0x00007700, 0x00
 };
 
 /* =========================================================================
- * Circular RX buffer for USART3 (packet receive)
+ * Circular RX buffer (tasks a-e) - written by ISR, read by receiveMsg
  * ====================================================================== */
-static volatile uint8_t s_rx_buffer[RX_BUFFER_SIZE];
-static volatile uint8_t s_write_pos = 0;
-static volatile uint8_t s_read_pos  = 0;
+static volatile uint8_t  s_rx_buffer[RX_BUFFER_SIZE];
+static volatile uint8_t  s_write_pos = 0;
+static volatile uint8_t  s_read_pos  = 0;
 
 /* =========================================================================
- * IRQ Handlers
+ * TX interrupt buffer (task f)
  * ====================================================================== */
+static volatile uint8_t  s_tx_buffer[TX_BUFFER_SIZE];
+static volatile uint8_t  s_tx_length   = 0;
+static volatile uint8_t  s_tx_index    = 0;
+static volatile uint8_t  s_tx_busy     = 0;
 
-/* USART1: used for TX only (debug strings to screen) - no RX handler needed */
+/* =========================================================================
+ * RX double buffer (task f)
+ * ====================================================================== */
+static volatile uint8_t  s_rx_body_buf[2][RX_BODY_SIZE];
+static volatile uint8_t  s_rx_body_len[2]  = {0, 0};
+static volatile uint8_t  s_rx_msg_type[2]  = {0, 0};
+static volatile uint8_t  s_rx_active_buf   = 0;
+static volatile int8_t   s_rx_ready_buf    = -1;
+static volatile uint8_t  s_rx_msg_ready    = 0;
+static volatile uint8_t  s_rx_dropped_msg  = 0;
+static volatile uint8_t  s_part_f_enabled  = 0;
+
+typedef enum {
+    RX_DB_WAIT_START,
+    RX_DB_READ_SIZE,
+    RX_DB_READ_TYPE,
+    RX_DB_READ_BODY,
+    RX_DB_READ_STOP,
+    RX_DB_READ_CHECKSUM
+} RxDbState;
+
+static volatile RxDbState s_rx_db_state        = RX_DB_WAIT_START;
+static volatile uint8_t   s_rx_db_expected_size = 0;
+static volatile uint8_t   s_rx_db_body_index    = 0;
+static volatile uint8_t   s_rx_db_running_chk   = 0;
+static volatile uint8_t   s_rx_db_current_type  = 0;
+
+/* =========================================================================
+ * part_f_rx_process_byte - double-buffer state machine (declared before use)
+ * ====================================================================== */
+static void part_f_rx_process_byte(uint8_t byte)
+{
+    uint8_t active = s_rx_active_buf;
+
+    switch (s_rx_db_state) {
+        case RX_DB_WAIT_START:
+            if (byte == SERIAL_START_BYTE) {
+                s_rx_db_running_chk   = SERIAL_START_BYTE;
+                s_rx_db_body_index    = 0;
+                s_rx_db_expected_size = 0;
+                s_rx_db_state         = RX_DB_READ_SIZE;
+            }
+            break;
+
+        case RX_DB_READ_SIZE:
+            if (byte == 0 || byte > RX_BODY_SIZE) {
+                s_rx_db_state = RX_DB_WAIT_START;
+            } else {
+                s_rx_db_expected_size  = byte;
+                s_rx_db_running_chk   ^= byte;
+                s_rx_db_state          = RX_DB_READ_TYPE;
+            }
+            break;
+
+        case RX_DB_READ_TYPE:
+            s_rx_db_current_type  = byte;
+            s_rx_db_running_chk  ^= byte;
+            s_rx_db_state         = RX_DB_READ_BODY;
+            break;
+
+        case RX_DB_READ_BODY:
+            s_rx_body_buf[active][s_rx_db_body_index] = byte;
+            s_rx_db_body_index++;
+            s_rx_db_running_chk ^= byte;
+            if (s_rx_db_body_index >= s_rx_db_expected_size)
+                s_rx_db_state = RX_DB_READ_STOP;
+            break;
+
+        case RX_DB_READ_STOP:
+            if (byte == SERIAL_STOP_BYTE) {
+                s_rx_db_running_chk ^= SERIAL_STOP_BYTE;
+                s_rx_db_state        = RX_DB_READ_CHECKSUM;
+            } else {
+                s_rx_db_state = RX_DB_WAIT_START;
+            }
+            break;
+
+        case RX_DB_READ_CHECKSUM:
+            if (byte == s_rx_db_running_chk) {
+                if (s_rx_msg_ready) {
+                    s_rx_dropped_msg = 1;
+                } else {
+                    s_rx_body_len[active]  = s_rx_db_expected_size;
+                    s_rx_msg_type[active]  = s_rx_db_current_type;
+                    s_rx_ready_buf         = active;
+                    s_rx_msg_ready         = 1;
+                    s_rx_active_buf       ^= 1;
+                    s_rx_body_len[s_rx_active_buf] = 0;
+                }
+            }
+            s_rx_db_state = RX_DB_WAIT_START;
+            break;
+
+        default:
+            s_rx_db_state = RX_DB_WAIT_START;
+            break;
+    }
+}
+
+/* =========================================================================
+ * USART1_EXTI25_IRQHandler - not used for RX in this setup
+ * ====================================================================== */
 void USART1_EXTI25_IRQHandler(void)
 {
-    if (USART1->ISR & USART_ISR_ORE) {
+    if (USART1->ISR & USART_ISR_ORE)
         USART1->ICR |= USART_ICR_ORECF;
-    }
 }
 
-/* USART3: stores received bytes into circular buffer */
+/* =========================================================================
+ * USART3_EXTI28_IRQHandler
+ *   Normal mode  (tasks a-e): stores bytes in circular buffer
+ *   Part F mode  (task f):    double-buffer state machine + TX interrupt
+ * ====================================================================== */
 void USART3_EXTI28_IRQHandler(void)
 {
-    if (USART3->ISR & USART_ISR_ORE) {
+    /* Clear overrun error */
+    if (USART3->ISR & USART_ISR_ORE)
         USART3->ICR |= USART_ICR_ORECF;
-    }
 
+    /* RX */
     if (USART3->ISR & USART_ISR_RXNE) {
         uint8_t byte = (uint8_t)(USART3->RDR & 0xFF);
-        uint8_t next_write = (s_write_pos + 1) % RX_BUFFER_SIZE;
-        if (next_write != s_read_pos) {
-            s_rx_buffer[s_write_pos] = byte;
-            s_write_pos = next_write;
+        if (s_part_f_enabled) {
+            part_f_rx_process_byte(byte);
+        } else {
+            uint8_t next = (s_write_pos + 1) % RX_BUFFER_SIZE;
+            if (next != s_read_pos) {
+                s_rx_buffer[s_write_pos] = byte;
+                s_write_pos = next;
+            }
         }
+    }
+
+    /* TX - send next byte from buffer */
+    if ((USART3->ISR & USART_ISR_TXE) && (USART3->CR1 & USART_CR1_TXEIE)) {
+        if (s_tx_index < s_tx_length) {
+            USART3->TDR = s_tx_buffer[s_tx_index++];
+        } else {
+            USART3->CR1 &= ~USART_CR1_TXEIE;
+            USART3->CR1 |=  USART_CR1_TCIE;
+        }
+    }
+
+    /* TX complete */
+    if ((USART3->ISR & USART_ISR_TC) && (USART3->CR1 & USART_CR1_TCIE)) {
+        USART3->ICR |= USART_ICR_TCCF;
+        USART3->CR1 &= ~USART_CR1_TCIE;
+        s_tx_busy = 0;
+        if (USART3_PORT.completion_function != 0)
+            USART3_PORT.completion_function(s_tx_length);
     }
 }
 
 /* =========================================================================
- * buffer_read
+ * buffer_read - read one byte from circular buffer
  * ====================================================================== */
 static uint8_t buffer_read(uint8_t *byte)
 {
@@ -168,7 +261,7 @@ void SerialInitialise(uint32_t baudRate,
 }
 
 /* =========================================================================
- * enable_interrupt - enables RXNE interrupt for USART3 (packet receive)
+ * enable_interrupt - tasks a-e: circular buffer RX
  * ====================================================================== */
 void enable_interrupt(SerialPort *serial_port)
 {
@@ -180,7 +273,31 @@ void enable_interrupt(SerialPort *serial_port)
 }
 
 /* =========================================================================
- * TX functions (blocking poll)
+ * enable_interrupt_part_f - task f: TX interrupt + double-buffer RX
+ * ====================================================================== */
+void enable_interrupt_part_f(SerialPort *serial_port)
+{
+    __disable_irq();
+
+    s_part_f_enabled      = 1;
+    s_tx_busy             = 0;
+    s_tx_index            = 0;
+    s_tx_length           = 0;
+    s_rx_db_state         = RX_DB_WAIT_START;
+    s_rx_active_buf       = 0;
+    s_rx_ready_buf        = -1;
+    s_rx_msg_ready        = 0;
+    s_rx_dropped_msg      = 0;
+
+    serial_port->UART->CR1 |= USART_CR1_RXNEIE;
+    NVIC_SetPriority(USART3_IRQn, 1);
+    NVIC_EnableIRQ(USART3_IRQn);
+
+    __enable_irq();
+}
+
+/* =========================================================================
+ * TX functions (blocking poll) - tasks a-e
  * ====================================================================== */
 void SerialOutputChar(uint8_t data, SerialPort *serial_port)
 {
@@ -211,22 +328,22 @@ void sendString(uint8_t *pt, SerialPort *serial_port)
 uint8_t calculateChecksum(void *data, uint8_t size, uint8_t type)
 {
     uint8_t *body = (uint8_t*)data;
-    uint8_t checksum = 0;
-    checksum ^= SERIAL_START_BYTE;
-    checksum ^= size;
-    checksum ^= type;
-    for (uint8_t i = 0; i < size; i++) checksum ^= body[i];
-    checksum ^= SERIAL_STOP_BYTE;
-    return checksum;
+    uint8_t  chk  = 0;
+    chk ^= SERIAL_START_BYTE;
+    chk ^= size;
+    chk ^= type;
+    for (uint8_t i = 0; i < size; i++) chk ^= body[i];
+    chk ^= SERIAL_STOP_BYTE;
+    return chk;
 }
 
 /* =========================================================================
- * sendMsg - transmit a framed packet
+ * sendMsg - polling TX framed packet (tasks a-e)
  * ====================================================================== */
 void sendMsg(void *data, uint8_t size, uint8_t type, SerialPort *serial_port)
 {
     uint8_t *body    = (uint8_t*)data;
-    uint8_t checksum = calculateChecksum(data, size, type);
+    uint8_t  checksum = calculateChecksum(data, size, type);
 
     SerialOutputChar(SERIAL_START_BYTE, serial_port);
     SerialOutputChar(size,              serial_port);
@@ -237,14 +354,70 @@ void sendMsg(void *data, uint8_t size, uint8_t type, SerialPort *serial_port)
 }
 
 /* =========================================================================
- * receiveMsg - parse a packet from the circular buffer
+ * sendMsgIT - interrupt-driven framed packet TX (task f)
+ * ====================================================================== */
+uint8_t sendMsgIT(void *data, uint8_t size, uint8_t type, SerialPort *serial_port)
+{
+    uint8_t *body  = (uint8_t*)data;
+    uint8_t  index = 0;
+
+    if (data == 0 || size == 0 || size > RX_BODY_SIZE) return 0;
+    if ((uint8_t)(size + 5) > TX_BUFFER_SIZE) return 0;
+
+    __disable_irq();
+    if (s_tx_busy) { __enable_irq(); return 0; }
+
+    uint8_t checksum = calculateChecksum(data, size, type);
+
+    s_tx_buffer[index++] = SERIAL_START_BYTE;
+    s_tx_buffer[index++] = size;
+    s_tx_buffer[index++] = type;
+    for (uint8_t i = 0; i < size; i++) s_tx_buffer[index++] = body[i];
+    s_tx_buffer[index++] = SERIAL_STOP_BYTE;
+    s_tx_buffer[index++] = checksum;
+
+    s_tx_length = index;
+    s_tx_index  = 0;
+    s_tx_busy   = 1;
+
+    serial_port->UART->CR1 |= USART_CR1_TXEIE;
+    __enable_irq();
+    return 1;
+}
+
+/* =========================================================================
+ * sendStringIT - interrupt-driven string TX (task f)
+ * ====================================================================== */
+uint8_t sendStringIT(uint8_t *pt, SerialPort *serial_port)
+{
+    uint8_t length = 0;
+    if (pt == 0) return 0;
+    while (pt[length] != 0) {
+        length++;
+        if (length >= TX_BUFFER_SIZE) return 0;
+    }
+
+    __disable_irq();
+    if (s_tx_busy) { __enable_irq(); return 0; }
+
+    for (uint8_t i = 0; i < length; i++) s_tx_buffer[i] = pt[i];
+    s_tx_length = length;
+    s_tx_index  = 0;
+    s_tx_busy   = 1;
+    serial_port->UART->CR1 |= USART_CR1_TXEIE;
+    __enable_irq();
+    return 1;
+}
+
+/* =========================================================================
+ * receiveMsg - circular buffer RX (tasks d-e)
  * ====================================================================== */
 void receiveMsg(SerialPort *serial_port,
                 void (*callback)(uint8_t *data, uint8_t size, uint8_t type))
 {
-    uint8_t byte, body_size, msg_type;
-    uint8_t body[RX_BODY_SIZE];
-    uint8_t received_checksum, calculated_checksum;
+    uint8_t  byte, body_size, msg_type;
+    uint8_t  body[RX_BODY_SIZE];
+    uint8_t  received_chk, calculated_chk;
     uint32_t timeout;
 
     if (callback == 0) return;
@@ -276,9 +449,9 @@ void receiveMsg(SerialPort *serial_port,
     }
 
     timeout = 0xFFFFFFF;
-    while (!buffer_read(&received_checksum)) { if (--timeout == 0) return; }
-    calculated_checksum = calculateChecksum(body, body_size, msg_type);
-    if (calculated_checksum != received_checksum) {
+    while (!buffer_read(&received_chk)) { if (--timeout == 0) return; }
+    calculated_chk = calculateChecksum(body, body_size, msg_type);
+    if (calculated_chk != received_chk) {
         sendString((uint8_t*)"ERR: bad checksum\r\n", &USART1_PORT);
         return;
     }
@@ -286,4 +459,34 @@ void receiveMsg(SerialPort *serial_port,
     callback(body, body_size, msg_type);
 }
 
-uint8_t SerialTxBusy(void) { return 0; }
+/* =========================================================================
+ * receiveMsgDoubleBuffer - double-buffer RX (task f)
+ * ====================================================================== */
+void receiveMsgDoubleBuffer(SerialPort *serial_port,
+                            void (*callback)(uint8_t *data, uint8_t size, uint8_t type))
+{
+    int8_t  ready;
+    uint8_t size, type;
+    (void)serial_port;
+    if (callback == 0) return;
+
+    __disable_irq();
+    if (!s_rx_msg_ready) { __enable_irq(); return; }
+    ready = s_rx_ready_buf;
+    size  = s_rx_body_len[ready];
+    type  = s_rx_msg_type[ready];
+    __enable_irq();
+
+    callback((uint8_t*)s_rx_body_buf[ready], size, type);
+
+    __disable_irq();
+    if (s_rx_ready_buf == ready) {
+        s_rx_msg_ready = 0;
+        s_rx_ready_buf = -1;
+    }
+    __enable_irq();
+}
+
+uint8_t SerialTxBusy(void)     { return 0; }
+uint8_t SerialTxBusy_IT(void)  { return s_tx_busy; }
+uint8_t SerialRxDroppedMessage(void) { return s_rx_dropped_msg; }

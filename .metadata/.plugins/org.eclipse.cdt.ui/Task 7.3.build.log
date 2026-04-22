@@ -1,10 +1,10 @@
-11:03:41 **** Incremental Build of configuration Debug for project Task 7.3 ****
+22:51:16 **** Incremental Build of configuration Debug for project Task 7.3 ****
 make -j13 all 
 arm-none-eabi-size  Task\ 7.3.elf 
    text	   data	    bss	    dec	    hex	filename
-   5560	    160	   2096	   7816	   1e88	Task 7.3.elf
+   6136	    164	   2372	   8672	   21e0	Task 7.3.elf
 Finished building: default.size.stdout
  
 
-11:03:41 Build Finished. 0 errors, 0 warnings. (took 77ms)
+22:51:16 Build Finished. 0 errors, 0 warnings. (took 79ms)
 

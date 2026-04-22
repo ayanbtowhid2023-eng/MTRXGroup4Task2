@@ -27,7 +27,7 @@
 #define MSG_TYPE_SENSOR  0x01
 
 /* Set to 'e' for tasks a-e, 'f' for task f */
-#define DEMO_PART 'e'
+#define DEMO_PART 'f'
 
 typedef struct {
     uint16_t x;
@@ -125,15 +125,16 @@ int main(void)
         sendString((uint8_t*)"TX free, calling sendMsgIT...\r\n", &USART1_PORT);
     }
 
-    sendMsgIT((void*)&TX_SENSOR_DATA, sizeof(TX_SENSOR_DATA),
-              MSG_TYPE_SENSOR, &USART3_PORT);
+    uint8_t result = sendMsgIT((void*)&TX_SENSOR_DATA, sizeof(TX_SENSOR_DATA),
+                               MSG_TYPE_SENSOR, &USART3_PORT);
+    if (result == 0) {
+        sendString((uint8_t*)"sendMsgIT returned 0 - failed!\r\n", &USART1_PORT);
+    } else {
+        sendString((uint8_t*)"sendMsgIT returned 1 - success!\r\n", &USART1_PORT);
+    }
 
-    /* Wait for TX to complete before checking for received data */
-    while (SerialTxBusy_IT()) {}
-
-    sendString((uint8_t*)"TX complete, waiting for packet...\r\n", &USART1_PORT);
-
-    /* Main loop - receiveMsgDoubleBuffer checks if a packet is ready */
+    /* Main loop - receiveMsgDoubleBuffer checks if a packet is ready.
+     * The ISR fills one buffer while the callback processes the other. */
     while (1) {
         receiveMsgDoubleBuffer(&USART3_PORT, &on_message_received);
     }
