@@ -9,6 +9,9 @@
  * TASK_C_DEMO -- sendMsg, raw packet visible in terminal
  * TASK_D_DEMO -- polling receiveMsgPolling, needs loopback PC10->PC11
  * TASK_E_DEMO -- interrupt receiveMsg, needs loopback PC10->PC11
+ *                NO USB-UART adapter for this test -- loopback only
+ *                LD3 (PE8) on = PASSED
+ *                LD4 (PE9) on = FAILED / timed out
  * TASK_F_DEMO -- interrupt TX + double buffer RX, needs loopback PC10->PC11
  */
 
@@ -27,7 +30,7 @@
 // #define TASK_F_DEMO
 
 /* -----------------------------------------------------------------------
- * Shared -- defined once outside all #ifdef blocks
+ * Shared
  * --------------------------------------------------------------------- */
 static void on_tx_complete(uint32_t bytes_sent) { (void)bytes_sent; }
 
@@ -39,6 +42,25 @@ typedef struct {
 } SensorData;
 
 #define MSG_TYPE_SENSOR  0x01
+
+/* -----------------------------------------------------------------------
+ * LED helpers -- PE8 = LD3 (PASSED), PE9 = LD4 (FAILED)
+ * --------------------------------------------------------------------- */
+static void leds_init(void)
+{
+    /* Enable GPIOE clock */
+    *((volatile uint32_t *)0x40021014) |= (1U << 21);  /* RCC->AHBENR GPIOEEN */
+    /* PE8, PE9, PE10 as outputs */
+    volatile uint32_t *moder = (volatile uint32_t *)0x48001000;
+    *moder &= ~(0xFU << 16);   /* clear PE8 and PE9 mode bits */
+    *moder |=  (0x5U << 16);   /* PE8 = output, PE9 = output */
+}
+
+static void led_on(uint8_t pin)
+{
+    volatile uint32_t *bsrr = (volatile uint32_t *)0x48001018;
+    *bsrr = (1U << pin);
+}
 
 /* -----------------------------------------------------------------------
  * TASK A
@@ -81,8 +103,7 @@ int main(void)
 }
 
 /* -----------------------------------------------------------------------
- * TASK D -- polling RX
- * Loopback wire: PC10 (TX) -> PC11 (RX)
+ * TASK D
  * --------------------------------------------------------------------- */
 #elif defined(TASK_D_DEMO)
 
@@ -98,11 +119,9 @@ int main(void)
 {
     SerialInitialise(BAUD_115200, &USART1_PORT, &on_tx_complete);
     sendString((uint8_t *)"Task D: polling RX...\r\n", &USART1_PORT);
-
     SensorData sensor = { .x = 100, .y = 200, .z = 300, .timestamp_ms = 12345 };
     sendMsg(&sensor, sizeof(sensor), MSG_TYPE_SENSOR, &USART1_PORT);
     receiveMsgPolling(&USART1_PORT, &on_received_d);
-
     if (received_d.x == sensor.x && received_d.y == sensor.y &&
         received_d.z == sensor.z && received_d.timestamp_ms == sensor.timestamp_ms) {
         sendString((uint8_t *)"Loopback PASSED!\r\n", &USART1_PORT);
@@ -114,11 +133,10 @@ int main(void)
 
 /* -----------------------------------------------------------------------
  * TASK E -- interrupt RX via circular buffer
- * Loopback wire: PC10 (TX) -> PC11 (RX)
- *
- * enable_interrupt() activates the ISR which fills the circular buffer.
- * sendMsg() sends the packet -- loopback routes it back to RX.
- * receiveMsg() drains the circular buffer and verifies the packet.
+ * Disconnect USB-UART adapter from PC10/PC11
+ * Connect loopback wire: PC10 -> PC11
+ * LD3 (PE8) lights up = PASSED
+ * LD4 (PE9) lights up = FAILED or timed out
  * --------------------------------------------------------------------- */
 #elif defined(TASK_E_DEMO)
 
@@ -136,10 +154,10 @@ static void on_received_e(uint8_t *data, uint8_t size, uint8_t type)
 
 int main(void)
 {
+    leds_init();
+
     SerialInitialise(BAUD_115200, &USART1_PORT, &on_tx_complete);
     enable_interrupt(&USART1_PORT);
-
-    sendString((uint8_t *)"Task E: interrupt RX...\r\n", &USART1_PORT);
 
     SensorData sensor = { .x = 100, .y = 200, .z = 300, .timestamp_ms = 12345 };
     sendMsg(&sensor, sizeof(sensor), MSG_TYPE_SENSOR, &USART1_PORT);
@@ -147,26 +165,22 @@ int main(void)
     /* receiveMsg reads from circular buffer filled by ISR */
     receiveMsg(&USART1_PORT, &on_received_e);
 
-    if (packet_received) {
-        if (received_e.x == sensor.x && received_e.y == sensor.y &&
-            received_e.z == sensor.z && received_e.timestamp_ms == sensor.timestamp_ms) {
-            sendString((uint8_t *)"Loopback PASSED!\r\n", &USART1_PORT);
-        } else {
-            sendString((uint8_t *)"Loopback FAILED! (data mismatch)\r\n", &USART1_PORT);
-        }
+    if (packet_received &&
+        received_e.x            == sensor.x &&
+        received_e.y            == sensor.y &&
+        received_e.z            == sensor.z &&
+        received_e.timestamp_ms == sensor.timestamp_ms)
+    {
+        led_on(8);   /* PE8 = LD3 = PASSED */
     } else {
-        sendString((uint8_t *)"No packet received.\r\n", &USART1_PORT);
+        led_on(9);   /* PE9 = LD4 = FAILED */
     }
+
     while (1) {}
 }
 
 /* -----------------------------------------------------------------------
  * TASK F -- interrupt TX + double buffer RX
- * Loopback wire: PC10 (TX) -> PC11 (RX)
- *
- * sendMsgIT() is non-blocking -- returns immediately.
- * receiveMsgDoubleBuffer() checks if ISR completed a packet, fires callback.
- * Call receiveMsgDoubleBuffer() repeatedly from the main loop.
  * --------------------------------------------------------------------- */
 #elif defined(TASK_F_DEMO)
 
@@ -184,10 +198,10 @@ static void on_received_f(uint8_t *data, uint8_t size, uint8_t type)
 
 int main(void)
 {
+    leds_init();
+
     SerialInitialise(BAUD_115200, &USART1_PORT, &on_tx_complete);
     enable_interrupt_part_f(&USART1_PORT);
-
-    sendString((uint8_t *)"Task F: interrupt TX + double buffer RX...\r\n", &USART1_PORT);
 
     SensorData sensor = { .x = 42, .y = 84, .z = 126, .timestamp_ms = 99999 };
     sendMsgIT(&sensor, sizeof(sensor), MSG_TYPE_SENSOR, &USART1_PORT);
@@ -198,16 +212,17 @@ int main(void)
         timeout++;
     }
 
-    if (packet_received_f) {
-        if (received_f.x == sensor.x && received_f.y == sensor.y &&
-            received_f.z == sensor.z && received_f.timestamp_ms == sensor.timestamp_ms) {
-            sendString((uint8_t *)"Task F PASSED!\r\n", &USART1_PORT);
-        } else {
-            sendString((uint8_t *)"Task F FAILED! (data mismatch)\r\n", &USART1_PORT);
-        }
+    if (packet_received_f &&
+        received_f.x            == sensor.x &&
+        received_f.y            == sensor.y &&
+        received_f.z            == sensor.z &&
+        received_f.timestamp_ms == sensor.timestamp_ms)
+    {
+        led_on(8);   /* PE8 = LD3 = PASSED */
     } else {
-        sendString((uint8_t *)"Task F timed out.\r\n", &USART1_PORT);
+        led_on(9);   /* PE9 = LD4 = FAILED */
     }
+
     while (1) {}
 }
 
