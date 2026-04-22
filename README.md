@@ -21,7 +21,7 @@ Remy:
 - Exercise 7.1
 
 
-## Project Overview
+# Project Overview
 
 ## Exercise 7.1 - Digital I/O
 
