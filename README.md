@@ -415,8 +415,8 @@ gpio_init_af(GPIOB, 1, 2);  // PB1 - TIM3 CH4 AF2
 This exercise implements a complete serial (UART) communication module for the STM32F3 Discovery board. It provides debug string output, structured packet transmission with framing and checksums, and interrupt-driven packet reception with both circular-buffer and double-buffer modes.
  
 Two UART ports are used:
-- **USART1 (PC4/PC5)** — connected to the ST-Link VCP, debug strings appear directly in `screen` on your Mac via USB
-- **USART3 (PC10/PC11)** — used for structured packet transmission and reception, tested with a loopback jumper wire
+- **USART1 (PC4/PC5)** - connected to the ST-Link VCP, debug strings appear directly in `screen` on your Mac via USB
+- **USART3 (PC10/PC11)** - used for structured packet transmission and reception, tested with a loopback jumper wire
 The packet format is: `[ START(0x02) | SIZE | TYPE | BODY... | STOP(0x03) | CHECKSUM ]` where the checksum is the XOR of all fields including the start and stop bytes.
  
 ---
@@ -438,9 +438,9 @@ screen /dev/tty.usbmodem103 115200
 ```
  
 **File structure:**
-- `serial.h` — public interface: port handles, packet constants, all function declarations
-- `serial.c` — full implementation: both port instances, IRQ handlers, all functions
-- `main.c` — demonstration: sends a `SensorData` struct as a packet, receives it via loopback, verifies data matches
+- `serial.h` - public interface: port handles, packet constants, all function declarations
+- `serial.c` - full implementation: both port instances, IRQ handlers, all functions
+- `main.c` - demonstration: sends a `SensorData` struct as a packet, receives it via loopback, verifies data matches
 ---
  
 ### Valid input
@@ -483,13 +483,13 @@ screen /dev/tty.usbmodem103 115200
  
 #### serial.h / serial.c
  
-The full struct definition of `_SerialPort` is hidden inside `serial.c` — callers only see the opaque `SerialPort` typedef. All hardware register details are encapsulated in the two pre-instantiated port objects `USART1_PORT` and `USART3_PORT`. No other file needs to know which GPIO pins, clock masks, or alternate function values are involved.
+The full struct definition of `_SerialPort` is hidden inside `serial.c` - callers only see the opaque `SerialPort` typedef. All hardware register details are encapsulated in the two pre-instantiated port objects `USART1_PORT` and `USART3_PORT`. No other file needs to know which GPIO pins, clock masks, or alternate function values are involved.
  
 **`SerialInitialise(baudRate, serial_port, completion_function)`**
 - Enables clocks for the GPIO port and UART peripheral
 - Configures GPIO pins to alternate function mode using `|=` on MODER and AFR registers to avoid disturbing other pins on the same port
 - Sets the baud rate register and enables TX, RX, and the UART peripheral
-- Does not enable interrupts — call `enable_interrupt()` or `enable_interrupt_part_f()` separately
+- Does not enable interrupts - call `enable_interrupt()` or `enable_interrupt_part_f()` separately
 **`enable_interrupt(serial_port)`**
 - Enables the RXNE interrupt on the UART and registers the USART3 IRQ in the NVIC
 - Disables global interrupts during setup to prevent a race condition on the NVIC registers
@@ -504,22 +504,22 @@ The full struct definition of `_SerialPort` is hidden inside `serial.c` — call
 **`sendMsg(data, size, type, serial_port)`**
 - Assembles and transmits a complete framed packet using polling TX
 - Packet layout: `[ 0x02 | size | type | body[0..size-1] | 0x03 | checksum ]`
-- Blocking — returns only after the last byte is written to TDR
+- Blocking - returns only after the last byte is written to TDR
 **`receiveMsg(serial_port, callback)`**
 - Reads bytes from the circular buffer filled by the RXNE ISR
 - Parses the packet format step by step with per-byte timeouts
 - Verifies the checksum and fires the callback with `(body, size, type)` on success
 - Prints an error string to USART1 on stop-byte or checksum failure
-- Non-blocking on timeout — returns immediately if no packet arrives within the timeout window
+- Non-blocking on timeout - returns immediately if no packet arrives within the timeout window
 **`USART3_EXTI28_IRQHandler`**
 - In normal mode (tasks a–e): reads each incoming byte from RDR and stores it in the circular buffer `s_rx_buffer` using a write pointer. Clears overrun errors to prevent the UART from locking up.
 - In part-f mode (task f): routes incoming bytes to `part_f_rx_process_byte()` for the double-buffer state machine, and also handles TX interrupts to send bytes from `s_tx_buffer` one at a time.
 **`enable_interrupt_part_f(serial_port)`** (task f)
 - Resets all TX and RX double-buffer state before enabling interrupts
-- Enables RXNEIE and the NVIC — from this point the IRQ handles both TX and RX
+- Enables RXNEIE and the NVIC - from this point the IRQ handles both TX and RX
 **`sendMsgIT(data, size, type, serial_port)`** (task f)
 - Loads the framed packet into `s_tx_buffer`, sets `s_tx_busy = 1`, and enables TXEIE
-- Returns immediately — the IRQ handler sends one byte per TXE interrupt
+- Returns immediately - the IRQ handler sends one byte per TXE interrupt
 - Returns 0 if TX is already busy, 1 on success
 **`sendStringIT(pt, serial_port)`** (task f)
 - Same pattern as `sendMsgIT` but for a null-terminated debug string
@@ -569,13 +569,13 @@ _Task f_ (set `DEMO_PART 'f'`, jumper PC10→PC11)
 The `size` field in the packet header is checked against `RX_BODY_SIZE` (64 bytes) before any body bytes are read. If the declared size exceeds the buffer, the packet is discarded immediately and the state machine resets to `WAIT_START`. For the circular buffer, if the write pointer would lap the read pointer the incoming byte is silently dropped and the overrun error flag is cleared so the UART does not lock up.
  
 **How do you determine when the incoming data has finished being received? Do you use a terminating character? What if this byte is missed or if the same byte appears elsewhere in the received data?**
-The packet uses both a STOP byte (0x03) and an explicit SIZE field in the header. Reception is primarily length-driven — the receiver reads exactly `size` body bytes before expecting the STOP byte, so a 0x03 value appearing inside the body is not treated as termination. The STOP byte is only checked after all `size` body bytes have been read. If the STOP byte is missed or corrupted, `receiveMsg` prints an error and discards the packet. A final XOR checksum over all fields provides a further integrity check — even if a 0x03 body byte happened to coincide with the stop byte position, the checksum would catch any resulting data corruption.
+The packet uses both a STOP byte (0x03) and an explicit SIZE field in the header. Reception is primarily length-driven - the receiver reads exactly `size` body bytes before expecting the STOP byte, so a 0x03 value appearing inside the body is not treated as termination. The STOP byte is only checked after all `size` body bytes have been read. If the STOP byte is missed or corrupted, `receiveMsg` prints an error and discards the packet. A final XOR checksum over all fields provides a further integrity check - even if a 0x03 body byte happened to coincide with the stop byte position, the checksum would catch any resulting data corruption.
  
 **What are some potential advantages and disadvantages of passing structures and raw bytes rather than strings?**
-Passing structures is more compact and efficient — a `SensorData` struct sends exactly 12 bytes rather than a formatted ASCII string that could be 40+ characters for the same data. It also removes ambiguity since the receiver knows the exact byte layout from the struct definition. The disadvantage is that both sides must agree on the same struct layout, and endianness matters if the boards have different architectures. Strings are easier to debug in a terminal but wasteful in bandwidth and parsing overhead.
+Passing structures is more compact and efficient - a `SensorData` struct sends exactly 12 bytes rather than a formatted ASCII string that could be 40+ characters for the same data. It also removes ambiguity since the receiver knows the exact byte layout from the struct definition. The disadvantage is that both sides must agree on the same struct layout, and endianness matters if the boards have different architectures. Strings are easier to debug in a terminal but wasteful in bandwidth and parsing overhead.
  
 **How do other software modules interact with the received data? Can they request the latest data? What happens with the incoming memory buffer after someone has requested the data? Do you clear the buffer? Do you have more than one buffer?**
-Other modules interact with received data entirely through the callback function registered with `receiveMsg` or `receiveMsgDoubleBuffer`. When a complete packet arrives, the callback is fired with a pointer to the body bytes, the size, and the message type. It is the callback's responsibility to copy the data out immediately — the internal buffer is not cleared after the callback returns, but it may be overwritten by the next incoming packet as soon as the ISR receives more data. In circular buffer mode there is one shared buffer and no protection against the next packet overwriting an unread one. In double-buffer mode (task f) there are two body buffers — the ISR switches to the second buffer as soon as the first is marked ready, so the callback can safely process the first buffer while new data fills the second. The `s_rx_dropped_msg` flag is set if a new packet arrives before the previous one has been consumed.
+Other modules interact with received data entirely through the callback function registered with `receiveMsg` or `receiveMsgDoubleBuffer`. When a complete packet arrives, the callback is fired with a pointer to the body bytes, the size, and the message type. It is the callback's responsibility to copy the data out immediately - the internal buffer is not cleared after the callback returns, but it may be overwritten by the next incoming packet as soon as the ISR receives more data. In circular buffer mode there is one shared buffer and no protection against the next packet overwriting an unread one. In double-buffer mode (task f) there are two body buffers - the ISR switches to the second buffer as soon as the first is marked ready, so the callback can safely process the first buffer while new data fills the second. The `s_rx_dropped_msg` flag is set if a new packet arrives before the previous one has been consumed.
  
 **What happens if someone requests new serial port data before the current stream of data is complete (i.e. before the stream is terminated)?**
 In circular buffer mode, `receiveMsg` reads from the buffer up to the point it has been filled by the ISR. If called before a complete packet has arrived, each per-step timeout expires and the function returns without firing the callback. The partial bytes remain in the circular buffer and the next call to `receiveMsg` will start from the START byte search. In double-buffer mode, `receiveMsgDoubleBuffer` simply returns immediately if `s_rx_msg_ready` is not set, so calling it before a packet is complete has no effect and no data is lost.
@@ -669,21 +669,21 @@ screen /dev/tty.usbmodemXXX 115200
 ```
 Open two terminals, one for each board.
  
-**Order of operations — Board 1 main.c:**
-1. `SerialInitialise(BAUD_115200, &USART1_PORT, on_tx_complete)` — sets up debug output to screen via ST-Link
-2. `SerialInitialise(BAUD_115200, &USART3_PORT, 0)` — sets up USART3 TX for packet transmission to Board 2
-3. `led_timer_init(30)` — starts TIM2 for system tick and LED rate limiting
-4. `discovery_init(on_button_press)` — initialises all 8 LEDs and button interrupt on PA0
-5. `compass_init()` — brings up I2C1 on PB6/PB7, enables FPU, configures magnetometer
+**Order of operations - Board 1 main.c:**
+1. `SerialInitialise(BAUD_115200, &USART1_PORT, on_tx_complete)` - sets up debug output to screen via ST-Link
+2. `SerialInitialise(BAUD_115200, &USART3_PORT, 0)` - sets up USART3 TX for packet transmission to Board 2
+3. `led_timer_init(30)` - starts TIM2 for system tick and LED rate limiting
+4. `discovery_init(on_button_press)` - initialises all 8 LEDs and button interrupt on PA0
+5. `compass_init()` - brings up I2C1 on PB6/PB7, enables FPU, configures magnetometer
 6. Main loop: calls `compass_read()` every ~100ms, packages heading and button flag into `MagMessage_t`, transmits via `sendMsg()` over USART3
-**Order of operations — Board 2 main.c:**
-1. `SCB->CPACR` — enables FPU before any float operations
-2. `SerialInitialise(BAUD_115200, &USART1_PORT, on_tx_complete)` — sets up debug output to screen via ST-Link
-3. `SerialInitialise(BAUD_115200, &USART3_PORT, 0)` — sets up USART3 RX for packet reception from Board 1
-4. `enable_interrupt(&USART3_PORT)` — enables RXNE interrupt on USART3 so incoming bytes are stored in circular buffer
-5. `led_timer_init(30)` — starts TIM2 for system tick and LED rate limiting
-6. `discovery_init(0)` — initialises all 8 LEDs, no button callback needed on Board 2
-7. `servo_init()` — configures TIM3 hardware PWM on PA6, servo starts at centre position (1500us)
+**Order of operations - Board 2 main.c:**
+1. `SCB->CPACR` - enables FPU before any float operations
+2. `SerialInitialise(BAUD_115200, &USART1_PORT, on_tx_complete)` - sets up debug output to screen via ST-Link
+3. `SerialInitialise(BAUD_115200, &USART3_PORT, 0)` - sets up USART3 RX for packet reception from Board 1
+4. `enable_interrupt(&USART3_PORT)` - enables RXNE interrupt on USART3 so incoming bytes are stored in circular buffer
+5. `led_timer_init(30)` - starts TIM2 for system tick and LED rate limiting
+6. `discovery_init(0)` - initialises all 8 LEDs, no button callback needed on Board 2
+7. `servo_init()` - configures TIM3 hardware PWM on PA6, servo starts at centre position (1500us)
 8. Main loop: calls `receiveMsg()` continuously, on valid packet calls `on_message_received()` callback which drives servo or LEDs depending on `button_flag`
 ---
  
@@ -696,13 +696,13 @@ Open two terminals, one for each board.
 | `heading_deg` | `float` | 0.0 – 360.0 | Compass heading from `compass_get_latest()` |
 | `button_flag` | `uint8_t` | 0 or 1 | 0 = servo mode, 1 = LED mode. Toggled on each button press |
  
-#### `heading_to_pulse_us(float heading_deg)` — Board 2 internal
+#### `heading_to_pulse_us(float heading_deg)` - Board 2 internal
  
 | Parameter | Valid Range | Clamped Range | Notes |
 |-----------|-------------|---------------|-------|
 | `heading_deg` | 0.0 – 360.0 | < 0 → 0, > 360 → 360 | Maps full compass range to 1000–2000us servo pulse |
  
-#### `heading_to_led(float heading_deg)` — Board 2 internal
+#### `heading_to_led(float heading_deg)` - Board 2 internal
  
 | Parameter | Valid Range | Clamped Range | Notes |
 |-----------|-------------|---------------|-------|
@@ -715,17 +715,17 @@ Open two terminals, one for each board.
 #### msg.h
 Shared header included by both Board 1 and Board 2 projects. Defines the message body structure and type code used in the UART packet.
  
-- **`MagMessage_t`** — body struct containing `heading_deg` (float) and `button_flag` (uint8_t)
-- **`MSG_TYPE_MAG`** — message type code `0x01` used in the TYPE field of the serial packet
-#### Board 1 — board1_main.c
+- **`MagMessage_t`** - body struct containing `heading_deg` (float) and `button_flag` (uint8_t)
+- **`MSG_TYPE_MAG`** - message type code `0x01` used in the TYPE field of the serial packet
+#### Board 1 - board1_main.c
  
 **`on_button_press()`**
 - ISR callback registered with `discovery_init()`, called from `EXTI0_IRQHandler` on each button press
 - Toggles `button_flag` between 0 and 1 using XOR: `button_flag ^= 1`
-- Kept minimal as it runs inside the ISR — only modifies one variable
+- Kept minimal as it runs inside the ISR - only modifies one variable
 **`on_tx_complete(uint32_t bytes_sent)`**
 - Completion callback required by `SerialInitialise()` for USART1
-- Does nothing — included to satisfy the serial module interface
+- Does nothing - included to satisfy the serial module interface
 **`delay_ms(uint32_t ms)`**
 - Blocking busy-loop delay used to pace the main loop at ~100ms per packet
 - Uses nested loops calibrated to HSI 8MHz: outer loop runs `ms` times, inner loop runs 8000 cycles
@@ -735,7 +735,7 @@ Shared header included by both Board 1 and Board 2 projects. Defines the message
 - Packages `heading_deg` and `button_flag` into a `MagMessage_t` struct
 - Calls `sendMsg()` to transmit the packet over USART3 to Board 2
 - Prints heading and current mode to USART1 debug console
-#### Board 2 — board2_main.c
+#### Board 2 - board2_main.c
  
 **`heading_to_pulse_us(float heading_deg)`**
 - Maps compass heading (0–360 degrees) to servo pulse width (1000–2000us)
@@ -752,19 +752,19 @@ Shared header included by both Board 1 and Board 2 projects. Defines the message
 - Prints current mode, heading, and output value to USART1 debug console
 **`on_tx_complete(uint32_t bytes_sent)`**
 - Completion callback required by `SerialInitialise()` for USART1
-- Does nothing — included to satisfy the serial module interface
+- Does nothing - included to satisfy the serial module interface
 #### Reused modules (unchanged from earlier exercises)
  
 | Module | Source | Role in Ex5 |
 |--------|--------|-------------|
-| `compass.c` / `compass.h` | Ex4 | Board 1 — reads magnetometer heading via I2C1 |
-| `serial.c` / `serial.h` | Ex3 | Both boards — UART packet TX and RX |
-| `discovery.c` / `discovery.h` | Ex1 | Both boards — LED and button interface |
-| `button.c` / `button.h` | Ex1 | Board 1 — button interrupt on PA0 |
-| `led.c` / `led.h` | Ex1 — | Both boards — LED state management |
-| `gpio.c` / `gpio.h` | Ex1 | Both boards — pin configuration |
-| `led_timer.c` / `led_timer.h` | Ex1 | Both boards — TIM2 system tick |
-| `servo.c` / `servo.h` | Ex2 | Board 2 — TIM3 hardware PWM on PA6 |
+| `compass.c` / `compass.h` | Ex4 | Board 1 - reads magnetometer heading via I2C1 |
+| `serial.c` / `serial.h` | Ex3 | Both boards - UART packet TX and RX |
+| `discovery.c` / `discovery.h` | Ex1 | Both boards - LED and button interface |
+| `button.c` / `button.h` | Ex1 | Board 1 - button interrupt on PA0 |
+| `led.c` / `led.h` | Ex1 - | Both boards - LED state management |
+| `gpio.c` / `gpio.h` | Ex1 | Both boards - pin configuration |
+| `led_timer.c` / `led_timer.h` | Ex1 | Both boards - TIM2 system tick |
+| `servo.c` / `servo.h` | Ex2 | Board 2 - TIM3 hardware PWM on PA6 |
  
 ---
 
