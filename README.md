@@ -634,11 +634,10 @@ Physical sanity checks during development:
 - Leave board still after calibration: gyro dps values sit near zero
 
 ### Notes
-- I2C GPIO pins must be push-pull with pull-down resistors on this board for the sensor to respond reliably
-- The FPU is explicitly enabled in `compass_init()` via `SCB->CPACR` before any float math (`atan2f`, `sqrtf`) runs. Skipping this causes a hard fault
-- `compass_init()` runs a manual bus recovery (9 SCL clocks) before enabling the peripheral. This fixes the case where the sensor is holding SDA low after an unclean reset
-- Debugger breakpoints stall I2C transfers and return corrupted data, which is why UART and LED verification are used instead of single-stepping
-- Hard-iron magnetometer calibration is not currently applied. The standard method is to rotate the board through all orientations, record the min and max of each axis, compute the midpoint offsets, and subtract them from the raw readings before running atan2 for heading
+- **Do the readings correspond to cardinal directions?** Not directly. The raw `atan2(y, x)` output rotates correctly with the board (a 90 degree rotation produces roughly a 90 degree change in heading), but the zero reference does not line up with magnetic north and each axis carries a constant bias. This is caused by nearby magnetic interference from components on the board itself which add a fixed offset to every sample. The raw heading is reliable for relative rotation but not for absolute compass direction
+- **How to calibrate the sensor?** The usual approach is to slowly rotate the board through a full circle while logging the x and y readings, then look at the highest and lowest value each axis hits. If the sensor was perfectly centred, those ranges would be symmetrical around zero, but because of the offsets mentioned above they aren't. Taking the midpoint of the min and max for each axis gives you a rough offset, and subtracting that from the raw readings before calculating the heading brings the output closer to a true angle. There are more involved versions that also account for the shape of the readings being stretched rather than a clean circle, and for the board not being level, but the basic idea is just to figure out the offset and subtract it
+
+
 
 ## Exercise 7.5 - Integration Task
 
