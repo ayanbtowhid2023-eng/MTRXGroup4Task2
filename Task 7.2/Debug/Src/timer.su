@@ -1,3 +1,5 @@
+../Inc/core_cm4.h:1688:22:__NVIC_EnableIRQ	16	static
+../Inc/core_cm4.h:1816:22:__NVIC_SetPriority	16	static
 ../Src/timer.c:22:6:TIM3_IRQHandler	8	static
 ../Src/timer.c:33:6:timer_init	16	static,ignoring_inline_asm
 ../Src/timer.c:58:6:timer_set_period_ms	16	static

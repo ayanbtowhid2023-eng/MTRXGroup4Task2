@@ -2,7 +2,5 @@
 "./Src/main.o"
 "./Src/one_shot.o"
 "./Src/servo.o"
-"./Src/syscalls.o"
-"./Src/sysmem.o"
 "./Src/timer.o"
 "./Startup/startup_stm32f303vctx.o"

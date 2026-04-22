@@ -1,0 +1,6 @@
+../Inc/core_cm4.h:1688:22:__NVIC_EnableIRQ	2
+../Inc/core_cm4.h:1816:22:__NVIC_SetPriority	2
+../Src/led_timer.c:21:6:led_timer_init	1
+../Src/led_timer.c:38:6:led_set_rate_limited	1
+../Src/led_timer.c:45:10:get_tick	1
+../Src/led_timer.c:50:6:TIM2_IRQHandler	3

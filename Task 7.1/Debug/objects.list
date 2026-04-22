@@ -1,0 +1,7 @@
+"./Src/button.o"
+"./Src/discovery.o"
+"./Src/gpio.o"
+"./Src/led.o"
+"./Src/led_timer.o"
+"./Src/main.o"
+"./Startup/startup_stm32f303vctx.o"

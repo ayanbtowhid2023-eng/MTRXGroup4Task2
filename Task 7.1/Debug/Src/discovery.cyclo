@@ -1,0 +1,6 @@
+../Src/discovery.c:46:6:discovery_init	1
+../Src/discovery.c:52:6:discovery_led_set	1
+../Src/discovery.c:57:5:discovery_led_get	1
+../Src/discovery.c:62:6:discovery_led_clear_all	1
+../Src/discovery.c:67:6:discovery_led_set_single	1
+../Src/discovery.c:72:5:discovery_button_pressed	2
