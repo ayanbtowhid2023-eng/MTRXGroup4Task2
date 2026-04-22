@@ -1,0 +1,5 @@
+../Src/accel.c:13:16:i2c_write_reg	9
+../Src/accel.c:30:16:i2c_read_regs	12
+../Src/accel.c:52:6:accel_init	3
+../Src/accel.c:61:9:accel_read	3
+../Src/accel.c:76:18:accel_get_latest	2
