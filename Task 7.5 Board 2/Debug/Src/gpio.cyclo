@@ -1,0 +1,6 @@
+../Src/gpio.c:8:12:validate	3
+../Src/gpio.c:15:12:enable_clock	7
+../Src/gpio.c:27:5:gpio_init	5
+../Src/gpio.c:53:5:gpio_init_af	3
+../Src/gpio.c:70:5:gpio_write	3
+../Src/gpio.c:81:5:gpio_read	3
