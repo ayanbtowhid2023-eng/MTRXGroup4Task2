@@ -163,18 +163,26 @@ Task B is demonstrated by uncommening `#define TASK_A_DEMO` and in the main code
 // timer_set_period_ms(100); // Sets the new period
 ```
 
-####Task A Demo
-- 
+_Task A Demo_
+- Uncomment `// #define TASK_A_DEMO`.
+- The call back funciton is defined in the main to toggle LED's (LD4) on and off
+- Every 500ms the LED should turn on and off.
+- TIM3 is used.
 
-####Task B Demo
-- 
+_Task B Demo_
+- This should decrease the period between toggling the LED (LD4) on and off to 100ms, such that the toggling occurs much faster.
+- TIM3 is used.
 
-####Task C Demo
-- 
+_Task C Demo_
+- Uncomment `// #define TASK_C_DEMO`
+- The servo's maximum movement is restricted to 90 degrees.
+- The servo begins in the full clock-wise position (defined by an input pulse width of 1ms), then goes to the centre position (1.5 ms) and then the full anticlockwise-position (2ms) before returning back to the full clock-wise position. This occurs at a period of 20ms.
+- TIM3 and its PWM hardware is used.
+- A DF9GMS servo is used, with brown wire connected to 5V, orange wire to PA6 and red wire to 5V. Due to concerns with stalling current the STM32 board should not power the servo, so only the orange wire is connected to PA6, while other powering modules (with shared ground) can be used to supply the servo with power.
 
-####Task D Demo
-- 
-
+_Task D Demo_
+- Uncomment `// #define TASK_D_DEMO`
+- After 5s LD4 is lit, and remains on. 
 
 ### Valid input
 
@@ -290,6 +298,7 @@ First we define `period_ms` and `cb` which represent the period of the timer and
 - Once the timer and interrupts are properly configured the counter is enabled.
 
 ### Testing
+
 
 ### Notes
 
