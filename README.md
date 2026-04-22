@@ -182,7 +182,8 @@ _Task C Demo_
 
 _Task D Demo_
 - Uncomment `// #define TASK_D_DEMO`
-- After 5s LD4 is lit, and remains on. 
+- After 5s LD4 is lit, and remains on.
+- TIM4 is used.
 
 ### Valid input
 
@@ -281,6 +282,7 @@ First we define `period_ms` and `cb` which represent the period of the timer and
 
 `servo_set_position`
 - Sets new pulse as the pulse fed into the timer and writes it directly into CCR1 for the new pulse width to be appended during the next cycle.
+- This is bounded to 1000us to 2000us to ensure that the servo does not exceed its mechanical limits.
 
 `servo_get_position`
 - 'Get' function that allows us to read the position value/ the pulse width externally.
@@ -299,6 +301,54 @@ First we define `period_ms` and `cb` which represent the period of the timer and
 
 ### Testing
 
+_Task A_
+
+| Test | Function Call | Expected Result | How to Verify |
+|------|--------------|-----------------|---------------|
+| Normal operation | `timer_init(500, on_timer_a)` | LD3 toggles every 500ms | Time 10 blinks with stopwatch — should take ~5 seconds |
+| Different period | `timer_init(100, on_timer_a)` | LD3 toggles every 100ms | Time 10 blinks with stopwatch — should take ~1 second |
+| NULL callback | `timer_init(500, NULL)` | No crash, timer runs silently, LED stays off | Board does not hang or reset |
+| Zero period (boundary) | `timer_init(0, on_timer_a)` | Clamped to 1ms, LED toggles as fast as possible | LED appears constantly on due to speed of toggling |
+
+---
+
+_Task B_
+
+| Test | Function Call | Expected Result | How to Verify |
+|------|--------------|-----------------|---------------|
+| Get period before set | `timer_get_period_ms()` after `timer_init(500, on_timer_a)` | Returns 500 | Set breakpoint after `timer_init`, inspect return value in debugger — should read 500 |
+| Set new period | `timer_set_period_ms(100)` | LED visibly speeds up from 500ms to 100ms blink rate | Observe LED blink rate change immediately after call |
+| Get period after set | `timer_get_period_ms()` after `timer_set_period_ms(100)` | Returns 100 | Set breakpoint after `timer_set_period_ms`, inspect return value in debugger — should read 100 |
+| Set zero period (boundary) | `timer_set_period_ms(0)` | ARR set to 0xFFFFFFFF — very long period, LED effectively stops | LED stops toggling |
+
+---
+
+_Task C_
+
+| Test | Function Call | Expected Result | How to Verify |
+|------|--------------|-----------------|---------------|
+| Initialisation | `servo_init()` | Servo moves to centre position | Physically observe servo arm at centre (1500us) |
+| Full clockwise | `servo_set_position(SERVO_POS_MIN_US)` | Servo moves to full CW position | Physically observe servo arm at full CW — visually distinct from centre |
+| Centre position | `servo_set_position(SERVO_POS_CENTRE_US)` | Servo moves to centre position | Physically observe servo arm returns to centre |
+| Full counter-clockwise | `servo_set_position(SERVO_POS_MAX_US)` | Servo moves to full CCW position | Physically observe servo arm at full CCW — visually distinct from centre |
+| Below minimum (boundary) | `servo_set_position(500)` | Clamped to 1000us, servo moves to full CW | Call `servo_get_position_us()` immediately after — debugger should show 1000 |
+| Above maximum (boundary) | `servo_set_position(3000)` | Clamped to 2000us, servo moves to full CCW | Call `servo_get_position_us()` immediately after — debugger should show 2000 |
+| Get position | `servo_get_position_us()` after `servo_set_position(1200)` | Returns 1200 | Set breakpoint after `servo_set_position`, inspect return value in debugger — should read 1200 |
+| Get position before init | `servo_get_position_us()` before `servo_init()` | Returns `SERVO_POS_CENTRE_US` (1500) | Inspect return value in debugger — should read 1500 |
+| 50Hz period verification | Observe servo sweep loop | Servo sweeps CW → centre → CCW repeatedly | Each sweep step held for ~800000 cycles — physically verify three distinct positions are reached |
+
+---
+
+_Task D_
+
+| Test | Function Call | Expected Result | How to Verify |
+|------|--------------|-----------------|---------------|
+| Normal operation | `one_shot_trigger(1000, one_shot_callback)` | LD3 turns on exactly once after 1 second | Time delay with stopwatch — should be ~1 second. LED stays on permanently after firing |
+| Fires only once | `one_shot_trigger(1000, one_shot_callback)` | LD3 turns on and never turns off | Observe LED stays on indefinitely — timer does not repeat |
+| Short delay (boundary) | `one_shot_trigger(1, one_shot_callback)` | LD3 turns on almost immediately | LED turns on as fast as possible after call |
+| Zero delay (boundary) | `one_shot_trigger(0, one_shot_callback)` | Clamped to 1ms, LED turns on almost immediately | LED turns on as fast as possible — same as 1ms test |
+| NULL callback | `one_shot_trigger(1000, NULL)` | No crash, timer fires and stops, nothing happens | Board does not hang or reset after 1 second |
+| Board reset re-trigger | Reset board, observe behaviour | LD3 stays off for 1 second then turns on again | Proves one-shot fires reliably on each power cycle, not random behaviour |
 
 ### Notes
 
