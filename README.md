@@ -25,9 +25,6 @@ Remy:
 
 ## Exercise 7.1 - Digital I/O
 
-# MTRX2700 - Exercise 7.1: Digital I/O
-## STM32F3 Discovery Board
-
 
 ## Summary
 On power-on LED3 lights. Each press of the blue button steps to the next LED (LED3 → LED4 → ... → LED10 → LED3). Nothing moves without a button press. All LED changes are driven by the button interrupt - the `while(1)` loop in `main.c` is empty.
