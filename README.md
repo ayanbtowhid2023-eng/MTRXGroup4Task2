@@ -759,3 +759,17 @@ Shared header included by both Board 1 and Board 2 projects. Defines the message
 ---
 
 ## Testing
+| Test | Expected Result | How to Verify |
+|------|----------------|---------------|
+| Board 1 startup | `"MTRX2700 Ex5 -- Board 1"` printed to screen | Open Board 1 screen terminal, press reset |
+| Board 2 startup | `"MTRX2700 Ex5 -- Board 2"` printed to screen | Open Board 2 screen terminal, press reset |
+| Compass reading | Heading values printing every ~100ms on Board 1 terminal | Rotate Board 1 and observe heading changing |
+| UART transmission | Board 2 terminal shows `"SERVO | Heading: XXX deg"` | Verify heading on Board 2 matches Board 1 |
+| Servo tracking | Servo physically moves as Board 1 is rotated | Point Board 1 in different directions, observe servo arm moving |
+| Button press — switch to LED mode | Board 1 prints `"Mode: LED"`, Board 2 prints `"LED | Heading: XXX"` | Press button once, observe terminal output changes |
+| LED heading display | One LED lights corresponding to compass direction | Rotate Board 1 to each of 8 cardinal directions, verify correct LED lights |
+| Button press — switch back to servo mode | Board 1 prints `"Mode: SERVO"`, servo resumes tracking | Press button again, observe servo starts moving |
+| Servo centres in LED mode | Servo arm returns to centre position when LED mode active | Press button to enter LED mode, physically verify servo at centre |
+| LEDs clear in servo mode | All LEDs off when in servo mode | Press button to return to servo mode, verify all LEDs turn off |
+| Compass error | `"ERR: compass read failed"` printed on Board 1 | Disconnect I2C wires and observe error message |
+| Invalid message type | `"ERR: unexpected message type/size"` printed on Board 2 | Send malformed packet manually via USART3 |
