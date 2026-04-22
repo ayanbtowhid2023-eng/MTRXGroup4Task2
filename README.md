@@ -51,22 +51,94 @@ This part is separated into c files:
 - One_shot.c - Triggers a single delayed callback using TIM4 which fires after a given delay and stops permanently.
 
 This part also features the header files:
-- Registers.h - From exercise 7.1. Defines the registers of the STM32 Discovery board, which may be accessed and interacted with to allow for specific functionality.
 - Gpio.h - From exercise 7.1 to define the funcitons that allow for general purpose input and output
 - Timer.h - Defines functions used in timer.c
 - Servo.h - Defines functions used in servo.c
 - One_shot.h - Defines funcitons used in one_shot.c
+- Stm32f303xc.h - Contains all information about registers and GPIO
 
-The main function is where the demonstrate parts A, B, C and D. The demonstrations may occur by 'un-commenting out' one of the following
+The main function is where we  may demonstrate parts A, B, C and D. The demonstrations may occur by 'un-commenting out' one of the following:
 ```c
 // #define TASK_A_DEMO
 // #define TASK_C_DEMO
 // #define TASK_D_DEMO
 ```
+Task B is demonstrated by uncommening `#define TASK_A_DEMO` and in the main code for the Task A demoing section uncommenting:
+```
+// uint32_t current = timer_get_period_ms();  // Gets the current period
+// (void)current; // Removes memory warning
+// timer_set_period_ms(100); // Sets the new period
+```
 
 ### Valid input
 
+## `timer_init(uint32_t period_ms, TimerCallback callback)`
+ 
+| Parameter | Valid Range | Invalid | Notes |
+|-----------|-------------|---------|-------|
+| `period_ms` | 1 – 4,294,967,295 | 0 (clamped to 1) | Sets ARR = period_ms - 1 |
+| `callback` | Any valid function pointer | `NULL` | NULL disables callback, timer still runs |
+ 
+---
+ 
+## `timer_set_period_ms(uint32_t new_period_ms)`
+ 
+| Parameter | Valid Range | Invalid | Notes |
+|-----------|-------------|---------|-------|
+| `new_period_ms` | 1 – 4,294,967,295 | 0 (sets ARR to 0xFFFFFFFF) | No clamping — caller must ensure ≥ 1 |
+ 
+---
+ 
+## `timer_get_period_ms(void)`
+ 
+| Return Value | Range | Notes |
+|--------------|-------|-------|
+| `uint32_t` | 1 – 4,294,967,295 | Returns 0 if called before `timer_init()` |
+ 
+---
+ 
+## `timer_set_callback(TimerCallback callback)`
+ 
+| Parameter | Valid Range | Invalid | Notes |
+|-----------|-------------|---------|-------|
+| `callback` | Any valid function pointer | `NULL` | NULL disables callback without stopping timer |
+ 
+---
+ 
+## `one_shot_trigger(uint32_t delay_ms, OneShotCallback callback)`
+ 
+| Parameter | Valid Range | Invalid | Notes |
+|-----------|-------------|---------|-------|
+| `delay_ms` | 1 – 4,294,967,295 | 0 (clamped to 1) | Sets ARR = delay_ms - 1 |
+| `callback` | Any valid function pointer | `NULL` | NULL means ISR fires but does nothing |
+ 
+---
+ 
+## `servo_init(void)`
+ 
+| Parameter | Valid Range | Notes |
+|-----------|-------------|-------|
+| None | — | Always resets to centre (1500 us). Safe to call multiple times. |
+ 
+---
+ 
+## `servo_set_position(uint32_t pulse_us)`
+ 
+| Parameter | Valid Range | Clamped Range | Notes |
+|-----------|-------------|---------------|-------|
+| `pulse_us` | 1000 – 2000 | < 1000 → 1000, > 2000 → 2000 | 1000 = full CW, 1500 = centre, 2000 = full CCW |
+ 
+---
+ 
+## `servo_get_position_us(void)`
+ 
+| Return Value | Range | Notes |
+|--------------|-------|-------|
+| `uint32_t` | 1000 – 2000 | Returns `SERVO_POS_CENTRE_US` (1500) if called before `servo_init()` |
+
+
 ### Functions and modularity
+
 
 ### Testing
 
