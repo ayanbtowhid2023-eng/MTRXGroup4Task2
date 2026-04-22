@@ -715,7 +715,7 @@ Shared header included by both Board 1 and Board 2 projects. Defines the message
 - Kept minimal as it runs inside the ISR - only modifies one variable
 **`on_tx_complete(uint32_t bytes_sent)`**
 - Completion callback required by `SerialInitialise()` for USART1
-- Does nothing - included to satisfy the serial module interface
+
 **`delay_ms(uint32_t ms)`**
 - Blocking busy-loop delay used to pace the main loop at ~100ms per packet
 - Uses nested loops calibrated to HSI 8MHz: outer loop runs `ms` times, inner loop runs 8000 cycles
@@ -742,7 +742,7 @@ Shared header included by both Board 1 and Board 2 projects. Defines the message
 - Prints current mode, heading, and output value to USART1 debug console
 **`on_tx_complete(uint32_t bytes_sent)`**
 - Completion callback required by `SerialInitialise()` for USART1
-- Does nothing - included to satisfy the serial module interface
+
 #### Reused modules 
  
 | Module | Source | Role in Ex5 |
