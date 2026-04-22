@@ -39,15 +39,15 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  17 .debug_macro  0001519c  00000000  00000000  00005212  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_line   000022c3  00000000  00000000  0001a3ae  2**0
+ 18 .debug_line   000020a1  00000000  00000000  0001a3ae  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .debug_str    00072b48  00000000  00000000  0001c671  2**0
+ 19 .debug_str    00072b3f  00000000  00000000  0001c44f  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 20 .comment      00000043  00000000  00000000  0008f1b9  2**0
+ 20 .comment      00000043  00000000  00000000  0008ef8e  2**0
                   CONTENTS, READONLY
- 21 .debug_frame  000004f0  00000000  00000000  0008f1fc  2**2
+ 21 .debug_frame  000004f0  00000000  00000000  0008efd4  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 22 .debug_line_str 00000071  00000000  00000000  0008f6ec  2**0
+ 22 .debug_line_str 00000068  00000000  00000000  0008f4c4  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -186,7 +186,7 @@ int button_init(const Button_Descriptor *desc, ButtonCallback callback)
  800026e:	687b      	ldr	r3, [r7, #4]
  8000270:	2b00      	cmp	r3, #0
  8000272:	d102      	bne.n	800027a <button_init+0x16>
- 8000274:	f04f 33ff 	mov.w	r3, #4294967295
+ 8000274:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
  8000278:	e073      	b.n	8000362 <button_init+0xfe>
 
     stored_callback = callback;
@@ -474,13 +474,13 @@ static int validate(GPIO_TypeDef *port, uint8_t pin)
  8000448:	687b      	ldr	r3, [r7, #4]
  800044a:	2b00      	cmp	r3, #0
  800044c:	d102      	bne.n	8000454 <validate+0x18>
- 800044e:	f04f 33ff 	mov.w	r3, #4294967295
+ 800044e:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
  8000452:	e006      	b.n	8000462 <validate+0x26>
     if (pin > 15)  return -1;
  8000454:	78fb      	ldrb	r3, [r7, #3]
  8000456:	2b0f      	cmp	r3, #15
  8000458:	d902      	bls.n	8000460 <validate+0x24>
- 800045a:	f04f 33ff 	mov.w	r3, #4294967295
+ 800045a:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
  800045e:	e000      	b.n	8000462 <validate+0x26>
     return 0;
  8000460:	2300      	movs	r3, #0
@@ -566,7 +566,7 @@ static int enable_clock(GPIO_TypeDef *port)
  80004f8:	6153      	str	r3, [r2, #20]
  80004fa:	e002      	b.n	8000502 <enable_clock+0x92>
     else return -1;
- 80004fc:	f04f 33ff 	mov.w	r3, #4294967295
+ 80004fc:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
  8000500:	e000      	b.n	8000504 <enable_clock+0x94>
     return 0;
  8000502:	2300      	movs	r3, #0
@@ -603,7 +603,7 @@ int gpio_init(GPIO_TypeDef *port, uint8_t pin, GPIO_Direction direction)
  8000542:	4603      	mov	r3, r0
  8000544:	2b00      	cmp	r3, #0
  8000546:	d002      	beq.n	800054e <gpio_init+0x26>
- 8000548:	f04f 33ff 	mov.w	r3, #4294967295
+ 8000548:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
  800054c:	e051      	b.n	80005f2 <gpio_init+0xca>
     if (enable_clock(port)  != 0) return -1;
  800054e:	6878      	ldr	r0, [r7, #4]
@@ -611,7 +611,7 @@ int gpio_init(GPIO_TypeDef *port, uint8_t pin, GPIO_Direction direction)
  8000554:	4603      	mov	r3, r0
  8000556:	2b00      	cmp	r3, #0
  8000558:	d002      	beq.n	8000560 <gpio_init+0x38>
- 800055a:	f04f 33ff 	mov.w	r3, #4294967295
+ 800055a:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
  800055e:	e048      	b.n	80005f2 <gpio_init+0xca>
 
     /* Clear mode bits */
@@ -729,7 +729,7 @@ int gpio_write(GPIO_TypeDef *port, uint8_t pin, GPIO_PinState_t state)
  8000614:	4603      	mov	r3, r0
  8000616:	2b00      	cmp	r3, #0
  8000618:	d002      	beq.n	8000620 <gpio_write+0x26>
- 800061a:	f04f 33ff 	mov.w	r3, #4294967295
+ 800061a:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
  800061e:	e00f      	b.n	8000640 <gpio_write+0x46>
 
     if (state == GPIO_PIN_HIGH)
@@ -880,7 +880,7 @@ int led_set(uint8_t id, LED_State state)
  8000710:	79fa      	ldrb	r2, [r7, #7]
  8000712:	429a      	cmp	r2, r3
  8000714:	d302      	bcc.n	800071c <led_set+0x20>
- 8000716:	f04f 33ff 	mov.w	r3, #4294967295
+ 8000716:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
  800071a:	e020      	b.n	800075e <led_set+0x62>
     led_state[id] = state;
  800071c:	79fb      	ldrb	r3, [r7, #7]
@@ -947,7 +947,7 @@ int led_get(uint8_t id)
  8000786:	79fa      	ldrb	r2, [r7, #7]
  8000788:	429a      	cmp	r2, r3
  800078a:	d302      	bcc.n	8000792 <led_get+0x1a>
- 800078c:	f04f 33ff 	mov.w	r3, #4294967295
+ 800078c:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
  8000790:	e002      	b.n	8000798 <led_get+0x20>
     return (int)led_state[id];
  8000792:	79fb      	ldrb	r3, [r7, #7]

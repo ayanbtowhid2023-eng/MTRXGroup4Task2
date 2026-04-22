@@ -5,49 +5,49 @@ Sections:
 Idx Name          Size      VMA       LMA       File off  Algn
   0 .isr_vector   00000194  08000000  08000000  00001000  2**0
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
-  1 .text         000004d8  08000194  08000194  00001194  2**2
+  1 .text         00000508  08000194  08000194  00001194  2**2
                   CONTENTS, ALLOC, LOAD, READONLY, CODE
-  2 .rodata       00000000  0800066c  08000674  00001674  2**0
+  2 .rodata       00000000  0800069c  080006a4  000016a4  2**0
                   CONTENTS, ALLOC, LOAD, DATA
-  3 .ARM.extab    00000000  0800066c  0800066c  00001674  2**0
+  3 .ARM.extab    00000000  0800069c  0800069c  000016a4  2**0
                   CONTENTS, READONLY
-  4 .ARM          00000000  0800066c  0800066c  00001674  2**0
+  4 .ARM          00000000  0800069c  0800069c  000016a4  2**0
                   CONTENTS, READONLY
-  5 .preinit_array 00000000  0800066c  08000674  00001674  2**0
+  5 .preinit_array 00000000  0800069c  080006a4  000016a4  2**0
                   CONTENTS, ALLOC, LOAD, DATA
-  6 .init_array   00000004  0800066c  0800066c  0000166c  2**2
+  6 .init_array   00000004  0800069c  0800069c  0000169c  2**2
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
-  7 .fini_array   00000004  08000670  08000670  00001670  2**2
+  7 .fini_array   00000004  080006a0  080006a0  000016a0  2**2
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
-  8 .data         00000000  20000000  20000000  00001674  2**0
+  8 .data         00000000  20000000  20000000  000016a4  2**0
                   CONTENTS, ALLOC, LOAD, DATA
-  9 .ccmram       00000000  10000000  10000000  00001674  2**0
+  9 .ccmram       00000000  10000000  10000000  000016a4  2**0
                   CONTENTS
- 10 .bss          00000024  20000000  20000000  00002000  2**2
+ 10 .bss          0000002c  20000000  20000000  00002000  2**2
                   ALLOC
- 11 ._user_heap_stack 00000604  20000024  20000024  00002000  2**0
+ 11 ._user_heap_stack 00000604  2000002c  2000002c  00002000  2**0
                   ALLOC
- 12 .ARM.attributes 00000030  00000000  00000000  00001674  2**0
+ 12 .ARM.attributes 00000030  00000000  00000000  000016a4  2**0
                   CONTENTS, READONLY
- 13 .debug_info   00001795  00000000  00000000  000016a4  2**0
+ 13 .debug_info   000017a8  00000000  00000000  000016d4  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 14 .debug_abbrev 0000065a  00000000  00000000  00002e39  2**0
+ 14 .debug_abbrev 0000066b  00000000  00000000  00002e7c  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 15 .debug_aranges 00000120  00000000  00000000  00003498  2**3
+ 15 .debug_aranges 00000120  00000000  00000000  000034e8  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 16 .debug_rnglists 000000c4  00000000  00000000  000035b8  2**0
+ 16 .debug_rnglists 000000c4  00000000  00000000  00003608  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_macro  00014f5f  00000000  00000000  0000367c  2**0
+ 17 .debug_macro  00014f5f  00000000  00000000  000036cc  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_line   0000174b  00000000  00000000  000185db  2**0
+ 18 .debug_line   000015ef  00000000  00000000  0001862b  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .debug_str    000728eb  00000000  00000000  00019d26  2**0
+ 19 .debug_str    000728db  00000000  00000000  00019c1a  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 20 .comment      00000043  00000000  00000000  0008c611  2**0
+ 20 .comment      00000043  00000000  00000000  0008c4f5  2**0
                   CONTENTS, READONLY
- 21 .debug_frame  000002f0  00000000  00000000  0008c654  2**2
+ 21 .debug_frame  000002f0  00000000  00000000  0008c538  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 22 .debug_line_str 00000071  00000000  00000000  0008c944  2**0
+ 22 .debug_line_str 00000068  00000000  00000000  0008c828  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -66,7 +66,7 @@ Disassembly of section .text:
  80001aa:	bd10      	pop	{r4, pc}
  80001ac:	20000000 	.word	0x20000000
  80001b0:	00000000 	.word	0x00000000
- 80001b4:	08000654 	.word	0x08000654
+ 80001b4:	08000684 	.word	0x08000684
 
 080001b8 <frame_dummy>:
  80001b8:	b508      	push	{r3, lr}
@@ -78,7 +78,7 @@ Disassembly of section .text:
  80001c6:	bd08      	pop	{r3, pc}
  80001c8:	00000000 	.word	0x00000000
  80001cc:	20000004 	.word	0x20000004
- 80001d0:	08000654 	.word	0x08000654
+ 80001d0:	08000684 	.word	0x08000684
 
 080001d4 <validate>:
  */
@@ -97,13 +97,13 @@ static int validate(GPIO_TypeDef *port, uint8_t pin)
  80001e0:	687b      	ldr	r3, [r7, #4]
  80001e2:	2b00      	cmp	r3, #0
  80001e4:	d102      	bne.n	80001ec <validate+0x18>
- 80001e6:	f04f 33ff 	mov.w	r3, #4294967295
+ 80001e6:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
  80001ea:	e006      	b.n	80001fa <validate+0x26>
     if (pin > 15)  return -1;
  80001ec:	78fb      	ldrb	r3, [r7, #3]
  80001ee:	2b0f      	cmp	r3, #15
  80001f0:	d902      	bls.n	80001f8 <validate+0x24>
- 80001f2:	f04f 33ff 	mov.w	r3, #4294967295
+ 80001f2:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
  80001f6:	e000      	b.n	80001fa <validate+0x26>
     return 0;
  80001f8:	2300      	movs	r3, #0
@@ -189,7 +189,7 @@ static int enable_clock(GPIO_TypeDef *port)
  8000290:	6153      	str	r3, [r2, #20]
  8000292:	e002      	b.n	800029a <enable_clock+0x92>
     else return -1;
- 8000294:	f04f 33ff 	mov.w	r3, #4294967295
+ 8000294:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
  8000298:	e000      	b.n	800029c <enable_clock+0x94>
     return 0;
  800029a:	2300      	movs	r3, #0
@@ -226,7 +226,7 @@ int gpio_init(GPIO_TypeDef *port, uint8_t pin, GPIO_Direction direction)
  80002da:	4603      	mov	r3, r0
  80002dc:	2b00      	cmp	r3, #0
  80002de:	d002      	beq.n	80002e6 <gpio_init+0x26>
- 80002e0:	f04f 33ff 	mov.w	r3, #4294967295
+ 80002e0:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
  80002e4:	e051      	b.n	800038a <gpio_init+0xca>
     if (enable_clock(port)  != 0) return -1;
  80002e6:	6878      	ldr	r0, [r7, #4]
@@ -234,7 +234,7 @@ int gpio_init(GPIO_TypeDef *port, uint8_t pin, GPIO_Direction direction)
  80002ec:	4603      	mov	r3, r0
  80002ee:	2b00      	cmp	r3, #0
  80002f0:	d002      	beq.n	80002f8 <gpio_init+0x38>
- 80002f2:	f04f 33ff 	mov.w	r3, #4294967295
+ 80002f2:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
  80002f6:	e048      	b.n	800038a <gpio_init+0xca>
 
     /* Clear mode bits */
@@ -352,7 +352,7 @@ int gpio_write(GPIO_TypeDef *port, uint8_t pin, GPIO_PinState_t state)
  80003ac:	4603      	mov	r3, r0
  80003ae:	2b00      	cmp	r3, #0
  80003b0:	d002      	beq.n	80003b8 <gpio_write+0x26>
- 80003b2:	f04f 33ff 	mov.w	r3, #4294967295
+ 80003b2:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
  80003b6:	e00f      	b.n	80003d8 <gpio_write+0x46>
 
     if (state == GPIO_PIN_HIGH)
@@ -382,464 +382,508 @@ int gpio_write(GPIO_TypeDef *port, uint8_t pin, GPIO_PinState_t state)
  80003dc:	46bd      	mov	sp, r7
  80003de:	bd80      	pop	{r7, pc}
 
-080003e0 <one_shot_callback>:
+080003e0 <on_timer_a>:
 
-// Task D
-#elif defined(TASK_D_DEMO)
+// Tasks A and B
+#ifdef TASK_A_DEMO
 
-static void one_shot_callback(void)
+static void on_timer_a(void) // Call-back function for toggling LED's
 {
  80003e0:	b580      	push	{r7, lr}
  80003e2:	af00      	add	r7, sp, #0
-    /* Fires exactly once after 1000ms then stops -- LD3 stays on */
-    gpio_write(GPIOE, 8, GPIO_PIN_HIGH);
- 80003e4:	2201      	movs	r2, #1
- 80003e6:	2108      	movs	r1, #8
- 80003e8:	4802      	ldr	r0, [pc, #8]	@ (80003f4 <one_shot_callback+0x14>)
- 80003ea:	f7ff ffd2 	bl	8000392 <gpio_write>
+    static int state = 0; // initialises state as off
+    if (state == 0) {
+ 80003e4:	4b0b      	ldr	r3, [pc, #44]	@ (8000414 <on_timer_a+0x34>)
+ 80003e6:	681b      	ldr	r3, [r3, #0]
+ 80003e8:	2b00      	cmp	r3, #0
+ 80003ea:	d108      	bne.n	80003fe <on_timer_a+0x1e>
+        gpio_write(GPIOE, 8, GPIO_PIN_HIGH); // Turns LED on
+ 80003ec:	2201      	movs	r2, #1
+ 80003ee:	2108      	movs	r1, #8
+ 80003f0:	4809      	ldr	r0, [pc, #36]	@ (8000418 <on_timer_a+0x38>)
+ 80003f2:	f7ff ffce 	bl	8000392 <gpio_write>
+        state = 1;
+ 80003f6:	4b07      	ldr	r3, [pc, #28]	@ (8000414 <on_timer_a+0x34>)
+ 80003f8:	2201      	movs	r2, #1
+ 80003fa:	601a      	str	r2, [r3, #0]
+    } else {
+        gpio_write(GPIOE, 8, GPIO_PIN_LOW);  // Turns the LED off
+        state = 0;
+    }
 }
- 80003ee:	bf00      	nop
- 80003f0:	bd80      	pop	{r7, pc}
- 80003f2:	bf00      	nop
- 80003f4:	48001000 	.word	0x48001000
+ 80003fc:	e007      	b.n	800040e <on_timer_a+0x2e>
+        gpio_write(GPIOE, 8, GPIO_PIN_LOW);  // Turns the LED off
+ 80003fe:	2200      	movs	r2, #0
+ 8000400:	2108      	movs	r1, #8
+ 8000402:	4805      	ldr	r0, [pc, #20]	@ (8000418 <on_timer_a+0x38>)
+ 8000404:	f7ff ffc5 	bl	8000392 <gpio_write>
+        state = 0;
+ 8000408:	4b02      	ldr	r3, [pc, #8]	@ (8000414 <on_timer_a+0x34>)
+ 800040a:	2200      	movs	r2, #0
+ 800040c:	601a      	str	r2, [r3, #0]
+}
+ 800040e:	bf00      	nop
+ 8000410:	bd80      	pop	{r7, pc}
+ 8000412:	bf00      	nop
+ 8000414:	2000001c 	.word	0x2000001c
+ 8000418:	48001000 	.word	0x48001000
 
-080003f8 <main>:
+0800041c <main>:
 
 int main(void)
 {
- 80003f8:	b580      	push	{r7, lr}
- 80003fa:	af00      	add	r7, sp, #0
-    gpio_init(GPIOE, 8, GPIO_DIRECTION_OUTPUT);
- 80003fc:	2201      	movs	r2, #1
- 80003fe:	2108      	movs	r1, #8
- 8000400:	4807      	ldr	r0, [pc, #28]	@ (8000420 <main+0x28>)
- 8000402:	f7ff ff5d 	bl	80002c0 <gpio_init>
-    gpio_write(GPIOE, 8, GPIO_PIN_LOW);
- 8000406:	2200      	movs	r2, #0
- 8000408:	2108      	movs	r1, #8
- 800040a:	4805      	ldr	r0, [pc, #20]	@ (8000420 <main+0x28>)
- 800040c:	f7ff ffc1 	bl	8000392 <gpio_write>
+ 800041c:	b580      	push	{r7, lr}
+ 800041e:	af00      	add	r7, sp, #0
+    gpio_init(GPIOE, 8, GPIO_DIRECTION_OUTPUT);  // Initialises GPIOE clock by enabling it and sets MODER bits for pin 8 to output mode
+ 8000420:	2201      	movs	r2, #1
+ 8000422:	2108      	movs	r1, #8
+ 8000424:	4807      	ldr	r0, [pc, #28]	@ (8000444 <main+0x28>)
+ 8000426:	f7ff ff4b 	bl	80002c0 <gpio_init>
+    gpio_write(GPIOE, 8, GPIO_PIN_LOW); // Drives low to ensure the LED starts off before the timer starts
+ 800042a:	2200      	movs	r2, #0
+ 800042c:	2108      	movs	r1, #8
+ 800042e:	4805      	ldr	r0, [pc, #20]	@ (8000444 <main+0x28>)
+ 8000430:	f7ff ffaf 	bl	8000392 <gpio_write>
 
-    /* TASK D: delay in ms and callback pointer passed as parameters */
-    one_shot_trigger(5000, one_shot_callback);
- 8000410:	4904      	ldr	r1, [pc, #16]	@ (8000424 <main+0x2c>)
- 8000412:	f241 3088 	movw	r0, #5000	@ 0x1388
- 8000416:	f000 f86b 	bl	80004f0 <one_shot_trigger>
+    // TASK A: interval (500ms) and callback passed at init
+    timer_init(500, on_timer_a);
+ 8000434:	4904      	ldr	r1, [pc, #16]	@ (8000448 <main+0x2c>)
+ 8000436:	f44f 70fa 	mov.w	r0, #500	@ 0x1f4
+ 800043a:	f000 f881 	bl	8000540 <timer_init>
+    // TASK B: un-comment these three lines to demo get/set.
+    // uint32_t current = timer_get_period_ms();  // Gets the current period
+    //(void)current; // Removes memory warning
+    // timer_set_period_ms(100); // Sets the new period
 
     while (1) {}
- 800041a:	bf00      	nop
- 800041c:	e7fd      	b.n	800041a <main+0x22>
- 800041e:	bf00      	nop
- 8000420:	48001000 	.word	0x48001000
- 8000424:	080003e1 	.word	0x080003e1
+ 800043e:	bf00      	nop
+ 8000440:	e7fd      	b.n	800043e <main+0x22>
+ 8000442:	bf00      	nop
+ 8000444:	48001000 	.word	0x48001000
+ 8000448:	080003e1 	.word	0x080003e1
 
-08000428 <__NVIC_EnableIRQ>:
-  \details Enables a device specific interrupt in the NVIC interrupt controller.
-  \param [in]      IRQn  Device specific interrupt number.
-  \note    IRQn must not be negative.
- */
-__STATIC_INLINE void __NVIC_EnableIRQ(IRQn_Type IRQn)
-{
- 8000428:	b480      	push	{r7}
- 800042a:	b083      	sub	sp, #12
- 800042c:	af00      	add	r7, sp, #0
- 800042e:	4603      	mov	r3, r0
- 8000430:	71fb      	strb	r3, [r7, #7]
-  if ((int32_t)(IRQn) >= 0)
- 8000432:	f997 3007 	ldrsb.w	r3, [r7, #7]
- 8000436:	2b00      	cmp	r3, #0
- 8000438:	db0b      	blt.n	8000452 <__NVIC_EnableIRQ+0x2a>
-  {
-    NVIC->ISER[(((uint32_t)IRQn) >> 5UL)] = (uint32_t)(1UL << (((uint32_t)IRQn) & 0x1FUL));
- 800043a:	79fb      	ldrb	r3, [r7, #7]
- 800043c:	f003 021f 	and.w	r2, r3, #31
- 8000440:	4907      	ldr	r1, [pc, #28]	@ (8000460 <__NVIC_EnableIRQ+0x38>)
- 8000442:	f997 3007 	ldrsb.w	r3, [r7, #7]
- 8000446:	095b      	lsrs	r3, r3, #5
- 8000448:	2001      	movs	r0, #1
- 800044a:	fa00 f202 	lsl.w	r2, r0, r2
- 800044e:	f841 2023 	str.w	r2, [r1, r3, lsl #2]
-  }
-}
- 8000452:	bf00      	nop
- 8000454:	370c      	adds	r7, #12
- 8000456:	46bd      	mov	sp, r7
- 8000458:	f85d 7b04 	ldr.w	r7, [sp], #4
- 800045c:	4770      	bx	lr
- 800045e:	bf00      	nop
- 8000460:	e000e100 	.word	0xe000e100
-
-08000464 <__NVIC_SetPriority>:
-  \param [in]      IRQn  Interrupt number.
-  \param [in]  priority  Priority to set.
-  \note    The priority cannot be set for every processor exception.
- */
-__STATIC_INLINE void __NVIC_SetPriority(IRQn_Type IRQn, uint32_t priority)
-{
- 8000464:	b480      	push	{r7}
- 8000466:	b083      	sub	sp, #12
- 8000468:	af00      	add	r7, sp, #0
- 800046a:	4603      	mov	r3, r0
- 800046c:	6039      	str	r1, [r7, #0]
- 800046e:	71fb      	strb	r3, [r7, #7]
-  if ((int32_t)(IRQn) >= 0)
- 8000470:	f997 3007 	ldrsb.w	r3, [r7, #7]
- 8000474:	2b00      	cmp	r3, #0
- 8000476:	db0a      	blt.n	800048e <__NVIC_SetPriority+0x2a>
-  {
-    NVIC->IP[((uint32_t)IRQn)]               = (uint8_t)((priority << (8U - __NVIC_PRIO_BITS)) & (uint32_t)0xFFUL);
- 8000478:	683b      	ldr	r3, [r7, #0]
- 800047a:	b2da      	uxtb	r2, r3
- 800047c:	490c      	ldr	r1, [pc, #48]	@ (80004b0 <__NVIC_SetPriority+0x4c>)
- 800047e:	f997 3007 	ldrsb.w	r3, [r7, #7]
- 8000482:	0112      	lsls	r2, r2, #4
- 8000484:	b2d2      	uxtb	r2, r2
- 8000486:	440b      	add	r3, r1
- 8000488:	f883 2300 	strb.w	r2, [r3, #768]	@ 0x300
-  }
-  else
-  {
-    SCB->SHP[(((uint32_t)IRQn) & 0xFUL)-4UL] = (uint8_t)((priority << (8U - __NVIC_PRIO_BITS)) & (uint32_t)0xFFUL);
-  }
-}
- 800048c:	e00a      	b.n	80004a4 <__NVIC_SetPriority+0x40>
-    SCB->SHP[(((uint32_t)IRQn) & 0xFUL)-4UL] = (uint8_t)((priority << (8U - __NVIC_PRIO_BITS)) & (uint32_t)0xFFUL);
- 800048e:	683b      	ldr	r3, [r7, #0]
- 8000490:	b2da      	uxtb	r2, r3
- 8000492:	4908      	ldr	r1, [pc, #32]	@ (80004b4 <__NVIC_SetPriority+0x50>)
- 8000494:	79fb      	ldrb	r3, [r7, #7]
- 8000496:	f003 030f 	and.w	r3, r3, #15
- 800049a:	3b04      	subs	r3, #4
- 800049c:	0112      	lsls	r2, r2, #4
- 800049e:	b2d2      	uxtb	r2, r2
- 80004a0:	440b      	add	r3, r1
- 80004a2:	761a      	strb	r2, [r3, #24]
-}
- 80004a4:	bf00      	nop
- 80004a6:	370c      	adds	r7, #12
- 80004a8:	46bd      	mov	sp, r7
- 80004aa:	f85d 7b04 	ldr.w	r7, [sp], #4
- 80004ae:	4770      	bx	lr
- 80004b0:	e000e100 	.word	0xe000e100
- 80004b4:	e000ed00 	.word	0xe000ed00
-
-080004b8 <TIM4_IRQHandler>:
+0800044c <TIM4_IRQHandler>:
 // Private call back function pointer, initialised to NULL (0)
 static OneShotCallback stored_callback = 0;
 
 // Interrupt Service Routine (ISR) for TIM4
 void TIM4_IRQHandler(void) // This interrupt is triggered by the counter overflowing
 {
- 80004b8:	b580      	push	{r7, lr}
- 80004ba:	af00      	add	r7, sp, #0
+ 800044c:	b580      	push	{r7, lr}
+ 800044e:	af00      	add	r7, sp, #0
     TIM4->SR  &= ~TIM_SR_UIF;   // Clears the update interrupt flag to prevent the ISR from firing again immediately
- 80004bc:	4b0a      	ldr	r3, [pc, #40]	@ (80004e8 <TIM4_IRQHandler+0x30>)
- 80004be:	691b      	ldr	r3, [r3, #16]
- 80004c0:	4a09      	ldr	r2, [pc, #36]	@ (80004e8 <TIM4_IRQHandler+0x30>)
- 80004c2:	f023 0301 	bic.w	r3, r3, #1
- 80004c6:	6113      	str	r3, [r2, #16]
+ 8000450:	4b0a      	ldr	r3, [pc, #40]	@ (800047c <TIM4_IRQHandler+0x30>)
+ 8000452:	691b      	ldr	r3, [r3, #16]
+ 8000454:	4a09      	ldr	r2, [pc, #36]	@ (800047c <TIM4_IRQHandler+0x30>)
+ 8000456:	f023 0301 	bic.w	r3, r3, #1
+ 800045a:	6113      	str	r3, [r2, #16]
     TIM4->CR1 &= ~TIM_CR1_CEN;  // Stops TIM4 by clearing the CEN (Counter Enable) - This is what ensures that the interrupt is only fired once
- 80004c8:	4b07      	ldr	r3, [pc, #28]	@ (80004e8 <TIM4_IRQHandler+0x30>)
- 80004ca:	681b      	ldr	r3, [r3, #0]
- 80004cc:	4a06      	ldr	r2, [pc, #24]	@ (80004e8 <TIM4_IRQHandler+0x30>)
- 80004ce:	f023 0301 	bic.w	r3, r3, #1
- 80004d2:	6013      	str	r3, [r2, #0]
+ 800045c:	4b07      	ldr	r3, [pc, #28]	@ (800047c <TIM4_IRQHandler+0x30>)
+ 800045e:	681b      	ldr	r3, [r3, #0]
+ 8000460:	4a06      	ldr	r2, [pc, #24]	@ (800047c <TIM4_IRQHandler+0x30>)
+ 8000462:	f023 0301 	bic.w	r3, r3, #1
+ 8000466:	6013      	str	r3, [r2, #0]
 
     if (stored_callback != 0) {
- 80004d4:	4b05      	ldr	r3, [pc, #20]	@ (80004ec <TIM4_IRQHandler+0x34>)
- 80004d6:	681b      	ldr	r3, [r3, #0]
- 80004d8:	2b00      	cmp	r3, #0
- 80004da:	d002      	beq.n	80004e2 <TIM4_IRQHandler+0x2a>
+ 8000468:	4b05      	ldr	r3, [pc, #20]	@ (8000480 <TIM4_IRQHandler+0x34>)
+ 800046a:	681b      	ldr	r3, [r3, #0]
+ 800046c:	2b00      	cmp	r3, #0
+ 800046e:	d002      	beq.n	8000476 <TIM4_IRQHandler+0x2a>
         stored_callback(); // Calls the callback function after checking that it isn't empty
- 80004dc:	4b03      	ldr	r3, [pc, #12]	@ (80004ec <TIM4_IRQHandler+0x34>)
- 80004de:	681b      	ldr	r3, [r3, #0]
- 80004e0:	4798      	blx	r3
+ 8000470:	4b03      	ldr	r3, [pc, #12]	@ (8000480 <TIM4_IRQHandler+0x34>)
+ 8000472:	681b      	ldr	r3, [r3, #0]
+ 8000474:	4798      	blx	r3
     }
 }
- 80004e2:	bf00      	nop
- 80004e4:	bd80      	pop	{r7, pc}
- 80004e6:	bf00      	nop
- 80004e8:	40000800 	.word	0x40000800
- 80004ec:	2000001c 	.word	0x2000001c
+ 8000476:	bf00      	nop
+ 8000478:	bd80      	pop	{r7, pc}
+ 800047a:	bf00      	nop
+ 800047c:	40000800 	.word	0x40000800
+ 8000480:	20000020 	.word	0x20000020
 
-080004f0 <one_shot_trigger>:
-
-// Public API
-
-void one_shot_trigger(uint32_t delay_ms, OneShotCallback callback) // Two inputs: Delay in ms and the function pointer for the callback function
+08000484 <__NVIC_EnableIRQ>:
+  \details Enables a device specific interrupt in the NVIC interrupt controller.
+  \param [in]      IRQn  Device specific interrupt number.
+  \note    IRQn must not be negative.
+ */
+__STATIC_INLINE void __NVIC_EnableIRQ(IRQn_Type IRQn)
 {
- 80004f0:	b580      	push	{r7, lr}
- 80004f2:	b082      	sub	sp, #8
- 80004f4:	af00      	add	r7, sp, #0
- 80004f6:	6078      	str	r0, [r7, #4]
- 80004f8:	6039      	str	r1, [r7, #0]
-    if (delay_ms < 1) delay_ms = 1;
- 80004fa:	687b      	ldr	r3, [r7, #4]
- 80004fc:	2b00      	cmp	r3, #0
- 80004fe:	d101      	bne.n	8000504 <one_shot_trigger+0x14>
- 8000500:	2301      	movs	r3, #1
- 8000502:	607b      	str	r3, [r7, #4]
-
-    // if (TIM4->CR1 & TIM_CR1_CEN) return;  // Reject if TIM4 is already running
-
-    stored_callback = callback; // Saves callback function pointer so ISR can call it after the delay
- 8000504:	4a1e      	ldr	r2, [pc, #120]	@ (8000580 <one_shot_trigger+0x90>)
- 8000506:	683b      	ldr	r3, [r7, #0]
- 8000508:	6013      	str	r3, [r2, #0]
-
-    RCC->APB1ENR |= RCC_APB1ENR_TIM4EN; // Enables TIM4's clock
- 800050a:	4b1e      	ldr	r3, [pc, #120]	@ (8000584 <one_shot_trigger+0x94>)
- 800050c:	69db      	ldr	r3, [r3, #28]
- 800050e:	4a1d      	ldr	r2, [pc, #116]	@ (8000584 <one_shot_trigger+0x94>)
- 8000510:	f043 0304 	orr.w	r3, r3, #4
- 8000514:	61d3      	str	r3, [r2, #28]
-
-    TIM4->CR1  &= ~TIM_CR1_CEN;  // Stops TIM4 while configuration is occurring (just in case it was running)
- 8000516:	4b1c      	ldr	r3, [pc, #112]	@ (8000588 <one_shot_trigger+0x98>)
- 8000518:	681b      	ldr	r3, [r3, #0]
- 800051a:	4a1b      	ldr	r2, [pc, #108]	@ (8000588 <one_shot_trigger+0x98>)
- 800051c:	f023 0301 	bic.w	r3, r3, #1
- 8000520:	6013      	str	r3, [r2, #0]
-    TIM4->PSC   = 7999; // Pre-scaler to scale it down from 8MHz by 8000 to 1KHz, thus one tick per millisecond
- 8000522:	4b19      	ldr	r3, [pc, #100]	@ (8000588 <one_shot_trigger+0x98>)
- 8000524:	f641 723f 	movw	r2, #7999	@ 0x1f3f
- 8000528:	629a      	str	r2, [r3, #40]	@ 0x28
-    TIM4->ARR   = (uint32_t)(delay_ms - 1); // Timer counts up from 0 to the Auto-Load Register value
- 800052a:	4a17      	ldr	r2, [pc, #92]	@ (8000588 <one_shot_trigger+0x98>)
- 800052c:	687b      	ldr	r3, [r7, #4]
- 800052e:	3b01      	subs	r3, #1
- 8000530:	62d3      	str	r3, [r2, #44]	@ 0x2c
-    TIM4->CNT   = 0; // Resets counter explicitly to 0
- 8000532:	4b15      	ldr	r3, [pc, #84]	@ (8000588 <one_shot_trigger+0x98>)
- 8000534:	2200      	movs	r2, #0
- 8000536:	625a      	str	r2, [r3, #36]	@ 0x24
-    TIM4->EGR  |= TIM_EGR_UG;    // Sets the shadow registers
- 8000538:	4b13      	ldr	r3, [pc, #76]	@ (8000588 <one_shot_trigger+0x98>)
- 800053a:	695b      	ldr	r3, [r3, #20]
- 800053c:	4a12      	ldr	r2, [pc, #72]	@ (8000588 <one_shot_trigger+0x98>)
- 800053e:	f043 0301 	orr.w	r3, r3, #1
- 8000542:	6153      	str	r3, [r2, #20]
-    TIM4->SR   &= ~TIM_SR_UIF;   // Clears status register flag
- 8000544:	4b10      	ldr	r3, [pc, #64]	@ (8000588 <one_shot_trigger+0x98>)
- 8000546:	691b      	ldr	r3, [r3, #16]
- 8000548:	4a0f      	ldr	r2, [pc, #60]	@ (8000588 <one_shot_trigger+0x98>)
- 800054a:	f023 0301 	bic.w	r3, r3, #1
- 800054e:	6113      	str	r3, [r2, #16]
-    TIM4->DIER |= TIM_DIER_UIE;  // Enables update interrupt so when TIM4 overflows it fires an interrupt
- 8000550:	4b0d      	ldr	r3, [pc, #52]	@ (8000588 <one_shot_trigger+0x98>)
- 8000552:	68db      	ldr	r3, [r3, #12]
- 8000554:	4a0c      	ldr	r2, [pc, #48]	@ (8000588 <one_shot_trigger+0x98>)
- 8000556:	f043 0301 	orr.w	r3, r3, #1
- 800055a:	60d3      	str	r3, [r2, #12]
-
-    NVIC_SetPriority(TIM4_IRQn, 2); // Sets interrupt priority as 2
- 800055c:	2102      	movs	r1, #2
- 800055e:	201e      	movs	r0, #30
- 8000560:	f7ff ff80 	bl	8000464 <__NVIC_SetPriority>
-    NVIC_EnableIRQ(TIM4_IRQn); // Tells the NVIC to check the interrupt priority and generate the interrupt
- 8000564:	201e      	movs	r0, #30
- 8000566:	f7ff ff5f 	bl	8000428 <__NVIC_EnableIRQ>
-
-    TIM4->CR1  |= TIM_CR1_CEN;   // Sets CEN (Counter Enable) to begin the counter
- 800056a:	4b07      	ldr	r3, [pc, #28]	@ (8000588 <one_shot_trigger+0x98>)
- 800056c:	681b      	ldr	r3, [r3, #0]
- 800056e:	4a06      	ldr	r2, [pc, #24]	@ (8000588 <one_shot_trigger+0x98>)
- 8000570:	f043 0301 	orr.w	r3, r3, #1
- 8000574:	6013      	str	r3, [r2, #0]
+ 8000484:	b480      	push	{r7}
+ 8000486:	b083      	sub	sp, #12
+ 8000488:	af00      	add	r7, sp, #0
+ 800048a:	4603      	mov	r3, r0
+ 800048c:	71fb      	strb	r3, [r7, #7]
+  if ((int32_t)(IRQn) >= 0)
+ 800048e:	f997 3007 	ldrsb.w	r3, [r7, #7]
+ 8000492:	2b00      	cmp	r3, #0
+ 8000494:	db0b      	blt.n	80004ae <__NVIC_EnableIRQ+0x2a>
+  {
+    NVIC->ISER[(((uint32_t)IRQn) >> 5UL)] = (uint32_t)(1UL << (((uint32_t)IRQn) & 0x1FUL));
+ 8000496:	79fb      	ldrb	r3, [r7, #7]
+ 8000498:	f003 021f 	and.w	r2, r3, #31
+ 800049c:	4907      	ldr	r1, [pc, #28]	@ (80004bc <__NVIC_EnableIRQ+0x38>)
+ 800049e:	f997 3007 	ldrsb.w	r3, [r7, #7]
+ 80004a2:	095b      	lsrs	r3, r3, #5
+ 80004a4:	2001      	movs	r0, #1
+ 80004a6:	fa00 f202 	lsl.w	r2, r0, r2
+ 80004aa:	f841 2023 	str.w	r2, [r1, r3, lsl #2]
+  }
 }
- 8000576:	bf00      	nop
- 8000578:	3708      	adds	r7, #8
- 800057a:	46bd      	mov	sp, r7
- 800057c:	bd80      	pop	{r7, pc}
- 800057e:	bf00      	nop
- 8000580:	2000001c 	.word	0x2000001c
- 8000584:	40021000 	.word	0x40021000
- 8000588:	40000800 	.word	0x40000800
+ 80004ae:	bf00      	nop
+ 80004b0:	370c      	adds	r7, #12
+ 80004b2:	46bd      	mov	sp, r7
+ 80004b4:	f85d 7b04 	ldr.w	r7, [sp], #4
+ 80004b8:	4770      	bx	lr
+ 80004ba:	bf00      	nop
+ 80004bc:	e000e100 	.word	0xe000e100
 
-0800058c <TIM3_IRQHandler>:
+080004c0 <__NVIC_SetPriority>:
+  \param [in]      IRQn  Interrupt number.
+  \param [in]  priority  Priority to set.
+  \note    The priority cannot be set for every processor exception.
+ */
+__STATIC_INLINE void __NVIC_SetPriority(IRQn_Type IRQn, uint32_t priority)
+{
+ 80004c0:	b480      	push	{r7}
+ 80004c2:	b083      	sub	sp, #12
+ 80004c4:	af00      	add	r7, sp, #0
+ 80004c6:	4603      	mov	r3, r0
+ 80004c8:	6039      	str	r1, [r7, #0]
+ 80004ca:	71fb      	strb	r3, [r7, #7]
+  if ((int32_t)(IRQn) >= 0)
+ 80004cc:	f997 3007 	ldrsb.w	r3, [r7, #7]
+ 80004d0:	2b00      	cmp	r3, #0
+ 80004d2:	db0a      	blt.n	80004ea <__NVIC_SetPriority+0x2a>
+  {
+    NVIC->IP[((uint32_t)IRQn)]               = (uint8_t)((priority << (8U - __NVIC_PRIO_BITS)) & (uint32_t)0xFFUL);
+ 80004d4:	683b      	ldr	r3, [r7, #0]
+ 80004d6:	b2da      	uxtb	r2, r3
+ 80004d8:	490c      	ldr	r1, [pc, #48]	@ (800050c <__NVIC_SetPriority+0x4c>)
+ 80004da:	f997 3007 	ldrsb.w	r3, [r7, #7]
+ 80004de:	0112      	lsls	r2, r2, #4
+ 80004e0:	b2d2      	uxtb	r2, r2
+ 80004e2:	440b      	add	r3, r1
+ 80004e4:	f883 2300 	strb.w	r2, [r3, #768]	@ 0x300
+  }
+  else
+  {
+    SCB->SHP[(((uint32_t)IRQn) & 0xFUL)-4UL] = (uint8_t)((priority << (8U - __NVIC_PRIO_BITS)) & (uint32_t)0xFFUL);
+  }
+}
+ 80004e8:	e00a      	b.n	8000500 <__NVIC_SetPriority+0x40>
+    SCB->SHP[(((uint32_t)IRQn) & 0xFUL)-4UL] = (uint8_t)((priority << (8U - __NVIC_PRIO_BITS)) & (uint32_t)0xFFUL);
+ 80004ea:	683b      	ldr	r3, [r7, #0]
+ 80004ec:	b2da      	uxtb	r2, r3
+ 80004ee:	4908      	ldr	r1, [pc, #32]	@ (8000510 <__NVIC_SetPriority+0x50>)
+ 80004f0:	79fb      	ldrb	r3, [r7, #7]
+ 80004f2:	f003 030f 	and.w	r3, r3, #15
+ 80004f6:	3b04      	subs	r3, #4
+ 80004f8:	0112      	lsls	r2, r2, #4
+ 80004fa:	b2d2      	uxtb	r2, r2
+ 80004fc:	440b      	add	r3, r1
+ 80004fe:	761a      	strb	r2, [r3, #24]
+}
+ 8000500:	bf00      	nop
+ 8000502:	370c      	adds	r7, #12
+ 8000504:	46bd      	mov	sp, r7
+ 8000506:	f85d 7b04 	ldr.w	r7, [sp], #4
+ 800050a:	4770      	bx	lr
+ 800050c:	e000e100 	.word	0xe000e100
+ 8000510:	e000ed00 	.word	0xe000ed00
+
+08000514 <TIM3_IRQHandler>:
 static          TimerCallback cb    = 0; // Represents an empty function pointer, when we jump to the pointer of a function we check that the pointer is not empty (actually points to an address)
 
 
 // TIM3 Interrupt Service Routine - Function that runs when interrupt is fired
 void TIM3_IRQHandler(void) // Interrupt request handler for TIM3
 {
- 800058c:	b580      	push	{r7, lr}
- 800058e:	af00      	add	r7, sp, #0
+ 8000514:	b580      	push	{r7, lr}
+ 8000516:	af00      	add	r7, sp, #0
     TIM3->SR &= ~TIM_SR_UIF;   // SR is the status register, when an interrupt fires it clears the UIF (Update Interrupt Flag) to 0 and allows for next interrupt to fire, otherwise the ISR enters an infinite loop
- 8000590:	4b07      	ldr	r3, [pc, #28]	@ (80005b0 <TIM3_IRQHandler+0x24>)
- 8000592:	691b      	ldr	r3, [r3, #16]
- 8000594:	4a06      	ldr	r2, [pc, #24]	@ (80005b0 <TIM3_IRQHandler+0x24>)
- 8000596:	f023 0301 	bic.w	r3, r3, #1
- 800059a:	6113      	str	r3, [r2, #16]
+ 8000518:	4b07      	ldr	r3, [pc, #28]	@ (8000538 <TIM3_IRQHandler+0x24>)
+ 800051a:	691b      	ldr	r3, [r3, #16]
+ 800051c:	4a06      	ldr	r2, [pc, #24]	@ (8000538 <TIM3_IRQHandler+0x24>)
+ 800051e:	f023 0301 	bic.w	r3, r3, #1
+ 8000522:	6113      	str	r3, [r2, #16]
     if (cb != 0) { // Checks if the call-back function is NULL (0), if it is then it skips the call
- 800059c:	4b05      	ldr	r3, [pc, #20]	@ (80005b4 <TIM3_IRQHandler+0x28>)
- 800059e:	681b      	ldr	r3, [r3, #0]
- 80005a0:	2b00      	cmp	r3, #0
- 80005a2:	d002      	beq.n	80005aa <TIM3_IRQHandler+0x1e>
+ 8000524:	4b05      	ldr	r3, [pc, #20]	@ (800053c <TIM3_IRQHandler+0x28>)
+ 8000526:	681b      	ldr	r3, [r3, #0]
+ 8000528:	2b00      	cmp	r3, #0
+ 800052a:	d002      	beq.n	8000532 <TIM3_IRQHandler+0x1e>
         cb(); // Calls the function fed into it
- 80005a4:	4b03      	ldr	r3, [pc, #12]	@ (80005b4 <TIM3_IRQHandler+0x28>)
- 80005a6:	681b      	ldr	r3, [r3, #0]
- 80005a8:	4798      	blx	r3
+ 800052c:	4b03      	ldr	r3, [pc, #12]	@ (800053c <TIM3_IRQHandler+0x28>)
+ 800052e:	681b      	ldr	r3, [r3, #0]
+ 8000530:	4798      	blx	r3
     }
 }
- 80005aa:	bf00      	nop
- 80005ac:	bd80      	pop	{r7, pc}
- 80005ae:	bf00      	nop
- 80005b0:	40000400 	.word	0x40000400
- 80005b4:	20000020 	.word	0x20000020
+ 8000532:	bf00      	nop
+ 8000534:	bd80      	pop	{r7, pc}
+ 8000536:	bf00      	nop
+ 8000538:	40000400 	.word	0x40000400
+ 800053c:	20000028 	.word	0x20000028
 
-080005b8 <Reset_Handler>:
+08000540 <timer_init>:
+
+// Accessible Functions (Global scope)
+
+// Initialise Timer
+void timer_init(uint32_t period_ms_arg, TimerCallback callback) // Two inputs: period_ms_arg (desired period in ms), callback (function pointer for callback)
+{
+ 8000540:	b580      	push	{r7, lr}
+ 8000542:	b082      	sub	sp, #8
+ 8000544:	af00      	add	r7, sp, #0
+ 8000546:	6078      	str	r0, [r7, #4]
+ 8000548:	6039      	str	r1, [r7, #0]
+    period_ms = (period_ms_arg >= 1) ? period_ms_arg : 1; // Sets the period to 1 if the argument passed into the function is less than 1
+ 800054a:	687b      	ldr	r3, [r7, #4]
+ 800054c:	2b00      	cmp	r3, #0
+ 800054e:	d001      	beq.n	8000554 <timer_init+0x14>
+ 8000550:	687b      	ldr	r3, [r7, #4]
+ 8000552:	e000      	b.n	8000556 <timer_init+0x16>
+ 8000554:	2301      	movs	r3, #1
+ 8000556:	4a20      	ldr	r2, [pc, #128]	@ (80005d8 <timer_init+0x98>)
+ 8000558:	6013      	str	r3, [r2, #0]
+    cb        = callback; // Setting cb function from argument
+ 800055a:	4a20      	ldr	r2, [pc, #128]	@ (80005dc <timer_init+0x9c>)
+ 800055c:	683b      	ldr	r3, [r7, #0]
+ 800055e:	6013      	str	r3, [r2, #0]
+
+    RCC->APB1ENR |= RCC_APB1ENR_TIM3EN; // Enables the clock for TIM3 (APB1ENR is clock enable register for APB1 Peripherals)
+ 8000560:	4b1f      	ldr	r3, [pc, #124]	@ (80005e0 <timer_init+0xa0>)
+ 8000562:	69db      	ldr	r3, [r3, #28]
+ 8000564:	4a1e      	ldr	r2, [pc, #120]	@ (80005e0 <timer_init+0xa0>)
+ 8000566:	f043 0302 	orr.w	r3, r3, #2
+ 800056a:	61d3      	str	r3, [r2, #28]
+  \details Disables IRQ interrupts by setting the I-bit in the CPSR.
+           Can only be executed in Privileged modes.
+ */
+__STATIC_FORCEINLINE void __disable_irq(void)
+{
+  __ASM volatile ("cpsid i" : : : "memory");
+ 800056c:	b672      	cpsid	i
+}
+ 800056e:	bf00      	nop
+
+    __disable_irq(); // Disables the interrupts globally, such that no interrupts may fire while we are configuring the timer
+
+    TIM3->CR1  &= ~TIM_CR1_CEN; // Clears the Counter Enable bit (CEN). Stops the timer so it doesn't behave unexpectedly during configuration.
+ 8000570:	4b1c      	ldr	r3, [pc, #112]	@ (80005e4 <timer_init+0xa4>)
+ 8000572:	681b      	ldr	r3, [r3, #0]
+ 8000574:	4a1b      	ldr	r2, [pc, #108]	@ (80005e4 <timer_init+0xa4>)
+ 8000576:	f023 0301 	bic.w	r3, r3, #1
+ 800057a:	6013      	str	r3, [r2, #0]
+    TIM3->PSC   = 7999; // Sets the pre-scaler dividing the 8MHz clock for TIM3 by 8000, such that it is 1 kHz. This means that now each 'tick' is 1ms. It is +1 as the pre-scaler automatically adds 1
+ 800057c:	4b19      	ldr	r3, [pc, #100]	@ (80005e4 <timer_init+0xa4>)
+ 800057e:	f641 723f 	movw	r2, #7999	@ 0x1f3f
+ 8000582:	629a      	str	r2, [r3, #40]	@ 0x28
+    TIM3->ARR   = (uint32_t)(period_ms - 1); // ARR (Auto-Reload Register). This sets the number that the counter counts up to before overflowing and firing the interrupt. If period = 500, ARR = 499, thus counter counts up to 499 and then fires.
+ 8000584:	4b14      	ldr	r3, [pc, #80]	@ (80005d8 <timer_init+0x98>)
+ 8000586:	681b      	ldr	r3, [r3, #0]
+ 8000588:	4a16      	ldr	r2, [pc, #88]	@ (80005e4 <timer_init+0xa4>)
+ 800058a:	3b01      	subs	r3, #1
+ 800058c:	62d3      	str	r3, [r2, #44]	@ 0x2c
+    TIM3->EGR  |= TIM_EGR_UG; // Writing the UG bit of the EGR (Event Generation Register), loads shadow registers to allow for immediate effect
+ 800058e:	4b15      	ldr	r3, [pc, #84]	@ (80005e4 <timer_init+0xa4>)
+ 8000590:	695b      	ldr	r3, [r3, #20]
+ 8000592:	4a14      	ldr	r2, [pc, #80]	@ (80005e4 <timer_init+0xa4>)
+ 8000594:	f043 0301 	orr.w	r3, r3, #1
+ 8000598:	6153      	str	r3, [r2, #20]
+    TIM3->SR   &= ~TIM_SR_UIF; // Writing to the EGR may have set the status register (interrupt flag), this prevents any undesired behaviour by clearing it
+ 800059a:	4b12      	ldr	r3, [pc, #72]	@ (80005e4 <timer_init+0xa4>)
+ 800059c:	691b      	ldr	r3, [r3, #16]
+ 800059e:	4a11      	ldr	r2, [pc, #68]	@ (80005e4 <timer_init+0xa4>)
+ 80005a0:	f023 0301 	bic.w	r3, r3, #1
+ 80005a4:	6113      	str	r3, [r2, #16]
+    TIM3->DIER |= TIM_DIER_UIE; // Enables the DMA/Interrupt Enable Register. Tells TIM3 to generate an interrupt request when it overflows (i.e. finishes one round of counting)
+ 80005a6:	4b0f      	ldr	r3, [pc, #60]	@ (80005e4 <timer_init+0xa4>)
+ 80005a8:	68db      	ldr	r3, [r3, #12]
+ 80005aa:	4a0e      	ldr	r2, [pc, #56]	@ (80005e4 <timer_init+0xa4>)
+ 80005ac:	f043 0301 	orr.w	r3, r3, #1
+ 80005b0:	60d3      	str	r3, [r2, #12]
+
+    NVIC_SetPriority(TIM3_IRQn, 2); // Sets the priority of the interrupt to 2, such that higher priority interrupts can act first while still maintaining a relatively high priority
+ 80005b2:	2102      	movs	r1, #2
+ 80005b4:	201d      	movs	r0, #29
+ 80005b6:	f7ff ff83 	bl	80004c0 <__NVIC_SetPriority>
+    NVIC_EnableIRQ(TIM3_IRQn); // Tells the interrupt controller (NVIC) to check the priority of the Interrupt Request (IRQ) then call the ISR (Interrupt Service Routine)
+ 80005ba:	201d      	movs	r0, #29
+ 80005bc:	f7ff ff62 	bl	8000484 <__NVIC_EnableIRQ>
+
+    TIM3->CR1  |= TIM_CR1_CEN; // Sets CEN (Counter Enable) --> Counter begins counting up from 0 to ARR, then fires the interrupt and then resets
+ 80005c0:	4b08      	ldr	r3, [pc, #32]	@ (80005e4 <timer_init+0xa4>)
+ 80005c2:	681b      	ldr	r3, [r3, #0]
+ 80005c4:	4a07      	ldr	r2, [pc, #28]	@ (80005e4 <timer_init+0xa4>)
+ 80005c6:	f043 0301 	orr.w	r3, r3, #1
+ 80005ca:	6013      	str	r3, [r2, #0]
+  __ASM volatile ("cpsie i" : : : "memory");
+ 80005cc:	b662      	cpsie	i
+}
+ 80005ce:	bf00      	nop
+
+    __enable_irq(); // Enables interrupts to occur since configuration has completed
+}
+ 80005d0:	bf00      	nop
+ 80005d2:	3708      	adds	r7, #8
+ 80005d4:	46bd      	mov	sp, r7
+ 80005d6:	bd80      	pop	{r7, pc}
+ 80005d8:	20000024 	.word	0x20000024
+ 80005dc:	20000028 	.word	0x20000028
+ 80005e0:	40021000 	.word	0x40021000
+ 80005e4:	40000400 	.word	0x40000400
+
+080005e8 <Reset_Handler>:
 
   .section .text.Reset_Handler
   .weak Reset_Handler
   .type Reset_Handler, %function
 Reset_Handler:
   ldr   r0, =_estack
- 80005b8:	480d      	ldr	r0, [pc, #52]	@ (80005f0 <LoopForever+0x2>)
+ 80005e8:	480d      	ldr	r0, [pc, #52]	@ (8000620 <LoopForever+0x2>)
   mov   sp, r0          /* set stack pointer */
- 80005ba:	4685      	mov	sp, r0
+ 80005ea:	4685      	mov	sp, r0
 /* Call the clock system initialization function.*/
   bl  SystemInit
- 80005bc:	f3af 8000 	nop.w
+ 80005ec:	f3af 8000 	nop.w
 
 /* Copy the data segment initializers from flash to SRAM */
   ldr r0, =_sdata
- 80005c0:	480c      	ldr	r0, [pc, #48]	@ (80005f4 <LoopForever+0x6>)
+ 80005f0:	480c      	ldr	r0, [pc, #48]	@ (8000624 <LoopForever+0x6>)
   ldr r1, =_edata
- 80005c2:	490d      	ldr	r1, [pc, #52]	@ (80005f8 <LoopForever+0xa>)
+ 80005f2:	490d      	ldr	r1, [pc, #52]	@ (8000628 <LoopForever+0xa>)
   ldr r2, =_sidata
- 80005c4:	4a0d      	ldr	r2, [pc, #52]	@ (80005fc <LoopForever+0xe>)
+ 80005f4:	4a0d      	ldr	r2, [pc, #52]	@ (800062c <LoopForever+0xe>)
   movs r3, #0
- 80005c6:	2300      	movs	r3, #0
+ 80005f6:	2300      	movs	r3, #0
   b LoopCopyDataInit
- 80005c8:	e002      	b.n	80005d0 <LoopCopyDataInit>
+ 80005f8:	e002      	b.n	8000600 <LoopCopyDataInit>
 
-080005ca <CopyDataInit>:
+080005fa <CopyDataInit>:
 
 CopyDataInit:
   ldr r4, [r2, r3]
- 80005ca:	58d4      	ldr	r4, [r2, r3]
+ 80005fa:	58d4      	ldr	r4, [r2, r3]
   str r4, [r0, r3]
- 80005cc:	50c4      	str	r4, [r0, r3]
+ 80005fc:	50c4      	str	r4, [r0, r3]
   adds r3, r3, #4
- 80005ce:	3304      	adds	r3, #4
+ 80005fe:	3304      	adds	r3, #4
 
-080005d0 <LoopCopyDataInit>:
+08000600 <LoopCopyDataInit>:
 
 LoopCopyDataInit:
   adds r4, r0, r3
- 80005d0:	18c4      	adds	r4, r0, r3
+ 8000600:	18c4      	adds	r4, r0, r3
   cmp r4, r1
- 80005d2:	428c      	cmp	r4, r1
+ 8000602:	428c      	cmp	r4, r1
   bcc CopyDataInit
- 80005d4:	d3f9      	bcc.n	80005ca <CopyDataInit>
+ 8000604:	d3f9      	bcc.n	80005fa <CopyDataInit>
 
 /* Zero fill the bss segment. */
   ldr r2, =_sbss
- 80005d6:	4a0a      	ldr	r2, [pc, #40]	@ (8000600 <LoopForever+0x12>)
+ 8000606:	4a0a      	ldr	r2, [pc, #40]	@ (8000630 <LoopForever+0x12>)
   ldr r4, =_ebss
- 80005d8:	4c0a      	ldr	r4, [pc, #40]	@ (8000604 <LoopForever+0x16>)
+ 8000608:	4c0a      	ldr	r4, [pc, #40]	@ (8000634 <LoopForever+0x16>)
   movs r3, #0
- 80005da:	2300      	movs	r3, #0
+ 800060a:	2300      	movs	r3, #0
   b LoopFillZerobss
- 80005dc:	e001      	b.n	80005e2 <LoopFillZerobss>
+ 800060c:	e001      	b.n	8000612 <LoopFillZerobss>
 
-080005de <FillZerobss>:
+0800060e <FillZerobss>:
 
 FillZerobss:
   str  r3, [r2]
- 80005de:	6013      	str	r3, [r2, #0]
+ 800060e:	6013      	str	r3, [r2, #0]
   adds r2, r2, #4
- 80005e0:	3204      	adds	r2, #4
+ 8000610:	3204      	adds	r2, #4
 
-080005e2 <LoopFillZerobss>:
+08000612 <LoopFillZerobss>:
 
 LoopFillZerobss:
   cmp r2, r4
- 80005e2:	42a2      	cmp	r2, r4
+ 8000612:	42a2      	cmp	r2, r4
   bcc FillZerobss
- 80005e4:	d3fb      	bcc.n	80005de <FillZerobss>
+ 8000614:	d3fb      	bcc.n	800060e <FillZerobss>
 
 
 /* Call static constructors */
   bl __libc_init_array
- 80005e6:	f000 f811 	bl	800060c <__libc_init_array>
+ 8000616:	f000 f811 	bl	800063c <__libc_init_array>
 /* Call the application's entry point.*/
 
   bl main
- 80005ea:	f7ff ff05 	bl	80003f8 <main>
+ 800061a:	f7ff feff 	bl	800041c <main>
 
-080005ee <LoopForever>:
+0800061e <LoopForever>:
 
 LoopForever:
   b LoopForever
- 80005ee:	e7fe      	b.n	80005ee <LoopForever>
+ 800061e:	e7fe      	b.n	800061e <LoopForever>
   ldr   r0, =_estack
- 80005f0:	2000a000 	.word	0x2000a000
+ 8000620:	2000a000 	.word	0x2000a000
   ldr r0, =_sdata
- 80005f4:	20000000 	.word	0x20000000
+ 8000624:	20000000 	.word	0x20000000
   ldr r1, =_edata
- 80005f8:	20000000 	.word	0x20000000
+ 8000628:	20000000 	.word	0x20000000
   ldr r2, =_sidata
- 80005fc:	08000674 	.word	0x08000674
+ 800062c:	080006a4 	.word	0x080006a4
   ldr r2, =_sbss
- 8000600:	20000000 	.word	0x20000000
+ 8000630:	20000000 	.word	0x20000000
   ldr r4, =_ebss
- 8000604:	20000024 	.word	0x20000024
+ 8000634:	2000002c 	.word	0x2000002c
 
-08000608 <ADC1_2_IRQHandler>:
+08000638 <ADC1_2_IRQHandler>:
  * @retval : None
 */
   .section .text.Default_Handler,"ax",%progbits
 Default_Handler:
 Infinite_Loop:
   b Infinite_Loop
- 8000608:	e7fe      	b.n	8000608 <ADC1_2_IRQHandler>
+ 8000638:	e7fe      	b.n	8000638 <ADC1_2_IRQHandler>
 	...
 
-0800060c <__libc_init_array>:
- 800060c:	b570      	push	{r4, r5, r6, lr}
- 800060e:	4b0d      	ldr	r3, [pc, #52]	@ (8000644 <__libc_init_array+0x38>)
- 8000610:	4d0d      	ldr	r5, [pc, #52]	@ (8000648 <__libc_init_array+0x3c>)
- 8000612:	1b5b      	subs	r3, r3, r5
- 8000614:	109c      	asrs	r4, r3, #2
- 8000616:	2600      	movs	r6, #0
- 8000618:	42a6      	cmp	r6, r4
- 800061a:	d109      	bne.n	8000630 <__libc_init_array+0x24>
- 800061c:	f000 f81a 	bl	8000654 <_init>
- 8000620:	4d0a      	ldr	r5, [pc, #40]	@ (800064c <__libc_init_array+0x40>)
- 8000622:	4b0b      	ldr	r3, [pc, #44]	@ (8000650 <__libc_init_array+0x44>)
- 8000624:	1b5b      	subs	r3, r3, r5
- 8000626:	109c      	asrs	r4, r3, #2
- 8000628:	2600      	movs	r6, #0
- 800062a:	42a6      	cmp	r6, r4
- 800062c:	d105      	bne.n	800063a <__libc_init_array+0x2e>
- 800062e:	bd70      	pop	{r4, r5, r6, pc}
- 8000630:	f855 3b04 	ldr.w	r3, [r5], #4
- 8000634:	4798      	blx	r3
- 8000636:	3601      	adds	r6, #1
- 8000638:	e7ee      	b.n	8000618 <__libc_init_array+0xc>
- 800063a:	f855 3b04 	ldr.w	r3, [r5], #4
- 800063e:	4798      	blx	r3
- 8000640:	3601      	adds	r6, #1
- 8000642:	e7f2      	b.n	800062a <__libc_init_array+0x1e>
- 8000644:	0800066c 	.word	0x0800066c
- 8000648:	0800066c 	.word	0x0800066c
- 800064c:	0800066c 	.word	0x0800066c
- 8000650:	08000670 	.word	0x08000670
+0800063c <__libc_init_array>:
+ 800063c:	b570      	push	{r4, r5, r6, lr}
+ 800063e:	4b0d      	ldr	r3, [pc, #52]	@ (8000674 <__libc_init_array+0x38>)
+ 8000640:	4d0d      	ldr	r5, [pc, #52]	@ (8000678 <__libc_init_array+0x3c>)
+ 8000642:	1b5b      	subs	r3, r3, r5
+ 8000644:	109c      	asrs	r4, r3, #2
+ 8000646:	2600      	movs	r6, #0
+ 8000648:	42a6      	cmp	r6, r4
+ 800064a:	d109      	bne.n	8000660 <__libc_init_array+0x24>
+ 800064c:	f000 f81a 	bl	8000684 <_init>
+ 8000650:	4d0a      	ldr	r5, [pc, #40]	@ (800067c <__libc_init_array+0x40>)
+ 8000652:	4b0b      	ldr	r3, [pc, #44]	@ (8000680 <__libc_init_array+0x44>)
+ 8000654:	1b5b      	subs	r3, r3, r5
+ 8000656:	109c      	asrs	r4, r3, #2
+ 8000658:	2600      	movs	r6, #0
+ 800065a:	42a6      	cmp	r6, r4
+ 800065c:	d105      	bne.n	800066a <__libc_init_array+0x2e>
+ 800065e:	bd70      	pop	{r4, r5, r6, pc}
+ 8000660:	f855 3b04 	ldr.w	r3, [r5], #4
+ 8000664:	4798      	blx	r3
+ 8000666:	3601      	adds	r6, #1
+ 8000668:	e7ee      	b.n	8000648 <__libc_init_array+0xc>
+ 800066a:	f855 3b04 	ldr.w	r3, [r5], #4
+ 800066e:	4798      	blx	r3
+ 8000670:	3601      	adds	r6, #1
+ 8000672:	e7f2      	b.n	800065a <__libc_init_array+0x1e>
+ 8000674:	0800069c 	.word	0x0800069c
+ 8000678:	0800069c 	.word	0x0800069c
+ 800067c:	0800069c 	.word	0x0800069c
+ 8000680:	080006a0 	.word	0x080006a0
 
-08000654 <_init>:
- 8000654:	b5f8      	push	{r3, r4, r5, r6, r7, lr}
- 8000656:	bf00      	nop
- 8000658:	bcf8      	pop	{r3, r4, r5, r6, r7}
- 800065a:	bc08      	pop	{r3}
- 800065c:	469e      	mov	lr, r3
- 800065e:	4770      	bx	lr
+08000684 <_init>:
+ 8000684:	b5f8      	push	{r3, r4, r5, r6, r7, lr}
+ 8000686:	bf00      	nop
+ 8000688:	bcf8      	pop	{r3, r4, r5, r6, r7}
+ 800068a:	bc08      	pop	{r3}
+ 800068c:	469e      	mov	lr, r3
+ 800068e:	4770      	bx	lr
 
-08000660 <_fini>:
- 8000660:	b5f8      	push	{r3, r4, r5, r6, r7, lr}
- 8000662:	bf00      	nop
- 8000664:	bcf8      	pop	{r3, r4, r5, r6, r7}
- 8000666:	bc08      	pop	{r3}
- 8000668:	469e      	mov	lr, r3
- 800066a:	4770      	bx	lr
+08000690 <_fini>:
+ 8000690:	b5f8      	push	{r3, r4, r5, r6, r7, lr}
+ 8000692:	bf00      	nop
+ 8000694:	bcf8      	pop	{r3, r4, r5, r6, r7}
+ 8000696:	bc08      	pop	{r3}
+ 8000698:	469e      	mov	lr, r3
+ 800069a:	4770      	bx	lr
