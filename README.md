@@ -163,16 +163,16 @@ Task B is demonstrated by uncommening `#define TASK_A_DEMO` and in the main code
 // timer_set_period_ms(100); // Sets the new period
 ```
 
-Task A Demo
+####Task A Demo
 - 
 
-Task B Demo
+####Task B Demo
 - 
 
-Task C Demo
+####Task C Demo
 - 
 
-Task D Demo
+####Task D Demo
 - 
 
 
