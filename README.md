@@ -299,6 +299,9 @@ First we define `period_ms` and `cb` which represent the period of the timer and
 - Enables the TIM4 clock and scales such that each tick is 1 ms.
 - Once the timer and interrupts are properly configured the counter is enabled.
 
+#### gpio.c
+This is the same module implemented from task 7.1, for more details of its funciton refer above.
+
 ### Testing
 
 _Task A_
@@ -640,15 +643,129 @@ Physical sanity checks during development:
 
 
 ## Exercise 7.5 - Integration Task
-
+ 
 ### Summary
-
+This exercise integrates all modules developed in Exercises 7.1 to 7.4 into a two-board system. Board 1 reads the magnetometer heading via I2C and monitors a button press via interrupt. It packages this data into a structured UART message and transmits it to Board 2 every 100ms. Board 2 receives the message and either drives a hobby servo to the corresponding heading position, or lights one of the 8 Discovery board LEDs corresponding to the compass direction, depending on the current display mode. The display mode is toggled each time the button on Board 1 is pressed.
+ 
+---
+ 
 ### Usage
+ 
+**Hardware setup:**
+- Connect Board 1 PC10 (USART3 TX) to Board 2 PC11 (USART3 RX) with a jumper wire
+- Connect Board 1 GND to Board 2 GND
+- Connect servo signal wire to PA6 on Board 2, servo VCC to 5V, servo GND to GND
+- USB cable to each board for power and debug output
+**Wiring diagram:**
+```
+Board 1 PC10 (USART3 TX)  ------>  Board 2 PC11 (USART3 RX)
+Board 1 GND               ------>  Board 2 GND
+                                   Board 2 PA6  ------>  Servo signal
+```
+ 
+**To view debug output:**
+```bash
+screen /dev/tty.usbmodemXXX 115200
+```
+Open two terminals, one for each board.
+ 
+**Order of operations — Board 1 main.c:**
+1. `SerialInitialise(BAUD_115200, &USART1_PORT, on_tx_complete)` — sets up debug output to screen via ST-Link
+2. `SerialInitialise(BAUD_115200, &USART3_PORT, 0)` — sets up USART3 TX for packet transmission to Board 2
+3. `led_timer_init(30)` — starts TIM2 for system tick and LED rate limiting
+4. `discovery_init(on_button_press)` — initialises all 8 LEDs and button interrupt on PA0
+5. `compass_init()` — brings up I2C1 on PB6/PB7, enables FPU, configures magnetometer
+6. Main loop: calls `compass_read()` every ~100ms, packages heading and button flag into `MagMessage_t`, transmits via `sendMsg()` over USART3
+**Order of operations — Board 2 main.c:**
+1. `SCB->CPACR` — enables FPU before any float operations
+2. `SerialInitialise(BAUD_115200, &USART1_PORT, on_tx_complete)` — sets up debug output to screen via ST-Link
+3. `SerialInitialise(BAUD_115200, &USART3_PORT, 0)` — sets up USART3 RX for packet reception from Board 1
+4. `enable_interrupt(&USART3_PORT)` — enables RXNE interrupt on USART3 so incoming bytes are stored in circular buffer
+5. `led_timer_init(30)` — starts TIM2 for system tick and LED rate limiting
+6. `discovery_init(0)` — initialises all 8 LEDs, no button callback needed on Board 2
+7. `servo_init()` — configures TIM3 hardware PWM on PA6, servo starts at centre position (1500us)
+8. Main loop: calls `receiveMsg()` continuously, on valid packet calls `on_message_received()` callback which drives servo or LEDs depending on `button_flag`
+---
+ 
+### Valid Input
+ 
+#### `MagMessage_t` (defined in msg.h)
+ 
+| Field | Type | Valid Range | Notes |
+|-------|------|-------------|-------|
+| `heading_deg` | `float` | 0.0 – 360.0 | Compass heading from `compass_get_latest()` |
+| `button_flag` | `uint8_t` | 0 or 1 | 0 = servo mode, 1 = LED mode. Toggled on each button press |
+ 
+#### `heading_to_pulse_us(float heading_deg)` — Board 2 internal
+ 
+| Parameter | Valid Range | Clamped Range | Notes |
+|-----------|-------------|---------------|-------|
+| `heading_deg` | 0.0 – 360.0 | < 0 → 0, > 360 → 360 | Maps full compass range to 1000–2000us servo pulse |
+ 
+#### `heading_to_led(float heading_deg)` — Board 2 internal
+ 
+| Parameter | Valid Range | Clamped Range | Notes |
+|-----------|-------------|---------------|-------|
+| `heading_deg` | 0.0 – 360.0 | < 0 → 0, > 360 → 360 | Divides 360 degrees into 8 sectors of 45 degrees each, returns LED index 0–7 |
+ 
+---
+ 
+### Functions and Modularity
+ 
+#### msg.h
+Shared header included by both Board 1 and Board 2 projects. Defines the message body structure and type code used in the UART packet.
+ 
+- **`MagMessage_t`** — body struct containing `heading_deg` (float) and `button_flag` (uint8_t)
+- **`MSG_TYPE_MAG`** — message type code `0x01` used in the TYPE field of the serial packet
+#### Board 1 — board1_main.c
+ 
+**`on_button_press()`**
+- ISR callback registered with `discovery_init()`, called from `EXTI0_IRQHandler` on each button press
+- Toggles `button_flag` between 0 and 1 using XOR: `button_flag ^= 1`
+- Kept minimal as it runs inside the ISR — only modifies one variable
+**`on_tx_complete(uint32_t bytes_sent)`**
+- Completion callback required by `SerialInitialise()` for USART1
+- Does nothing — included to satisfy the serial module interface
+**`delay_ms(uint32_t ms)`**
+- Blocking busy-loop delay used to pace the main loop at ~100ms per packet
+- Uses nested loops calibrated to HSI 8MHz: outer loop runs `ms` times, inner loop runs 8000 cycles
+**Main loop**
+- Calls `compass_read()` to update the magnetometer data structure
+- Retrieves latest data via `compass_get_latest()`
+- Packages `heading_deg` and `button_flag` into a `MagMessage_t` struct
+- Calls `sendMsg()` to transmit the packet over USART3 to Board 2
+- Prints heading and current mode to USART1 debug console
+#### Board 2 — board2_main.c
+ 
+**`heading_to_pulse_us(float heading_deg)`**
+- Maps compass heading (0–360 degrees) to servo pulse width (1000–2000us)
+- Formula: `pulse_us = 1000 + (heading / 360.0) * 1000`
+- Clamps output to `[SERVO_POS_MIN_US, SERVO_POS_MAX_US]`
+**`heading_to_led(float heading_deg)`**
+- Divides 360 degrees into 8 sectors of 45 degrees, returns LED index 0–7
+- LED 0 = North (0–44°), LED 1 = NE (45–89°), LED 2 = East (90–134°), LED 3 = SE (135–179°), LED 4 = South (180–224°), LED 5 = SW (225–269°), LED 6 = West (270–314°), LED 7 = NW (315–359°)
+**`on_message_received(uint8_t *data, uint8_t size, uint8_t type)`**
+- Callback passed to `receiveMsg()`, called on each valid received packet
+- Validates message type (`MSG_TYPE_MAG`) and size (`sizeof(MagMessage_t)`)
+- If `button_flag == 0`: calls `heading_to_pulse_us()` and `servo_set_position()`, clears all LEDs
+- If `button_flag == 1`: calls `heading_to_led()` and `discovery_led_set_single()`, centres servo at 1500us
+- Prints current mode, heading, and output value to USART1 debug console
+**`on_tx_complete(uint32_t bytes_sent)`**
+- Completion callback required by `SerialInitialise()` for USART1
+- Does nothing — included to satisfy the serial module interface
+#### Reused modules (unchanged from earlier exercises)
+ 
+| Module | Source | Role in Ex5 |
+|--------|--------|-------------|
+| `compass.c` / `compass.h` | Ex4 | Board 1 — reads magnetometer heading via I2C1 |
+| `serial.c` / `serial.h` | Ex3 | Both boards — UART packet TX and RX |
+| `discovery.c` / `discovery.h` | Ex1 | Both boards — LED and button interface |
+| `button.c` / `button.h` | Ex1 | Board 1 — button interrupt on PA0 |
+| `led.c` / `led.h` | Ex1 — | Both boards — LED state management |
+| `gpio.c` / `gpio.h` | Ex1 | Both boards — pin configuration |
+| `led_timer.c` / `led_timer.h` | Ex1 | Both boards — TIM2 system tick |
+| `servo.c` / `servo.h` | Ex2 | Board 2 — TIM3 hardware PWM on PA6 |
+ 
+---
 
-### Valid input
-
-### Functions and modularity
-
-### Testing
-
-### Notes
+## Testing
