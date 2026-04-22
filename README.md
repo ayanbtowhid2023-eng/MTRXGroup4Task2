@@ -367,6 +367,7 @@ Currently TIM3 and TIM4 are hardcoded to handle timer.c and one_shot.c respectiv
 - `NVIC_EnableIRQ(TIM3_IRQn);` becomes `NVIC_EnableIRQ(TIM4_IRQn);`
 - `void TIM3_IRQHandler(void)` becomes `void TIM4_IRQHandler(void)`
 - `TIM3->SR &= ~TIM_SR_UIF;` becomes `TIM4->SR &= ~TIM_SR_UIF;`
+
 Alternatively, an easier solution could be to have an alternate funciton for handling if a given timer requested is TIM3 or TIM4 - this allows for 2 timers working at the same time. This funciton would have the requested timer to be used as an input. In this case only 2 timers (timer only no one-shot), 2 one-shots (no timer) or 1 one-shot and 1-timer code to be run at a time due to TIM3 and TIM4. However, TIM2 can also be used if the task 1 code is not being run, such that 3 different timers can be used.
 
 2. What happens if one software module sets a delay, and before it elapses a different software module also tries to set a delay.
