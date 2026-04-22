@@ -1,2 +1,2 @@
-../Src/one_shot.c:23:6:TIM4_IRQHandler	8	static
-../Src/one_shot.c:37:6:one_shot_trigger	16	static
+../Src/one_shot.c:21:6:TIM4_IRQHandler	8	static
+../Src/one_shot.c:33:6:one_shot_trigger	16	static

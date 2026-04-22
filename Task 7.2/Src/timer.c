@@ -1,6 +1,6 @@
 /**
  * @file timer.c
- * @brief Generic repeating timer -- TIM3, bare-metal STM32F303.
+ * @brief Generic repeating timer -- TIM3
  *
  * HSI = 8 MHz.
  * PSC  = 7999  ->  TIM3 clock = 1 kHz  (1 tick = 1 ms)
