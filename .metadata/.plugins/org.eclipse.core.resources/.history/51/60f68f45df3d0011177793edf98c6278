@@ -1,0 +1,356 @@
+/**
+ ******************************************************************************
+ * @file    serial.c
+ * @brief   Serial (UART) module for MTRX2700 C Lab - Exercise 3
+ *
+ * Based on a confirmed working USART1 interrupt implementation.
+ * Added:
+ *   - sendMsg()            : framed structured packet transmission
+ *   - Packet state machine : interrupt-driven structured packet reception
+ *   - SerialSetRxCallback(): register callback for received packets
+ ******************************************************************************
+ */
+
+#include "serial.h"
+#include "stm32f303xc.h"
+#include <string.h>
+
+/* =========================================================================
+ * Serial port struct (hidden from users)
+ * ====================================================================== */
+struct _SerialPort {
+    USART_TypeDef   *UART;
+    GPIO_TypeDef    *GPIO;
+    volatile uint32_t MaskAPB2ENR;
+    volatile uint32_t MaskAPB1ENR;
+    volatile uint32_t MaskAHBENR;
+    volatile uint32_t SerialPinModeValue;
+    volatile uint32_t SerialPinSpeedValue;
+    volatile uint32_t SerialPinAlternatePinValueLow;
+    volatile uint32_t SerialPinAlternatePinValueHigh;
+    void (*completion_function)(uint32_t);
+};
+
+/* =========================================================================
+ * USART1 port instance  (PC10=TX, PC11=RX, AF7)
+ * ====================================================================== */
+SerialPort USART1_PORT = {
+    USART1,
+    GPIOC,
+    RCC_APB2ENR_USART1EN,
+    0x00,
+    RCC_AHBENR_GPIOCEN,
+    0xA00,      /* PC10+PC11 alternate function */
+    0xF00,      /* PC10+PC11 high speed         */
+    0x770000,   /* AF7 on PC10, PC11 (AFR[0])  */
+    0x00,
+    0x00
+};
+
+/* =========================================================================
+ * TX double-buffer state (from working implementation)
+ * ====================================================================== */
+volatile uint8_t db_buffer1[DB_BUFFER_SIZE];
+volatile uint8_t db_buffer2[DB_BUFFER_SIZE];
+
+volatile uint8_t  *fill_buffer     = db_buffer1;
+volatile uint8_t  *transmit_buffer = db_buffer2;
+volatile uint32_t  fill_index      = 0;
+volatile uint32_t  transmit_index  = 0;
+volatile uint32_t  transmit_length = 0;
+volatile uint8_t   is_transmitting = 0;
+
+/* =========================================================================
+ * RX packet state machine
+ * ====================================================================== */
+typedef enum {
+    RX_WAIT_START    = 0,
+    RX_WAIT_SIZE     = 1,
+    RX_WAIT_TYPE     = 2,
+    RX_READING_BODY  = 3,
+    RX_WAIT_CHECKSUM = 4,
+    RX_WAIT_STOP     = 5
+} RxState;
+
+static RxState   rx_state          = RX_WAIT_START;
+static uint8_t   rx_expected_size  = 0;
+static uint8_t   rx_msg_type       = 0;
+static uint8_t   rx_bytes_received = 0;
+static uint8_t   rx_checksum_calc  = 0;
+static uint8_t   rx_buffer[SERIAL_RX_BUFFER_SIZE];
+
+/* User-registered callback for completed packet reception */
+static SerialRxCompleteCallback rx_complete_callback = 0;
+
+/* start_flag and string receive (kept for compatibility) */
+uint8_t start_flag = 0;
+volatile uint8_t  input_received_flag = 0;
+volatile uint8_t  received_string[MAX_BUFFER_LENGTH];
+volatile uint32_t string_index = 0;
+
+/* =========================================================================
+ * SerialSetRxCallback
+ * ====================================================================== */
+void SerialSetRxCallback(SerialRxCompleteCallback callback)
+{
+    rx_complete_callback = callback;
+}
+
+/* =========================================================================
+ * SerialInitialise  (unchanged from working implementation)
+ * ====================================================================== */
+void SerialInitialise(uint32_t baudRate,
+                      SerialPort *serial_port,
+                      void (*completion_function)(uint32_t))
+{
+    serial_port->completion_function = completion_function;
+
+    RCC->APB1ENR |= RCC_APB1ENR_PWREN;
+    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
+    RCC->AHBENR  |= RCC_AHBENR_GPIOCEN;
+    RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+    RCC->AHBENR  |= serial_port->MaskAHBENR;
+
+    serial_port->GPIO->MODER    = serial_port->SerialPinModeValue;
+    serial_port->GPIO->OSPEEDR  = serial_port->SerialPinSpeedValue;
+    serial_port->GPIO->AFR[0]  |= serial_port->SerialPinAlternatePinValueLow;
+    serial_port->GPIO->AFR[1]  |= serial_port->SerialPinAlternatePinValueHigh;
+
+    serial_port->UART->CR1 |= USART_CR1_RXNEIE;  /* RX interrupt - always on */
+    /* NOTE: TXEIE is NOT enabled here - only enabled by SerialOutputStringDB
+     * when there is actually data to transmit. Enabling it here causes
+     * the IRQ to fire continuously since TXE is always set when idle. */
+
+    RCC->APB1ENR |= serial_port->MaskAPB1ENR;
+    RCC->APB2ENR |= serial_port->MaskAPB2ENR;
+
+    uint16_t *baud_rate_config = (uint16_t*)&serial_port->UART->BRR;
+    switch (baudRate) {
+        case BAUD_9600:
+        case BAUD_19200:
+        case BAUD_38400:
+        case BAUD_57600:
+        case BAUD_115200:
+        default:
+            *baud_rate_config = 0x46;  /* 115200 at 8MHz */
+            break;
+    }
+
+    serial_port->UART->CR1 |= USART_CR1_TE | USART_CR1_RE | USART_CR1_UE;
+}
+
+/* =========================================================================
+ * setupNVIC  (unchanged from working implementation)
+ * ====================================================================== */
+void setupNVIC(void)
+{
+    __disable_irq();
+    NVIC_SetPriority(USART1_IRQn, 1);
+    NVIC_EnableIRQ(USART1_IRQn);
+    __enable_irq();
+}
+
+/* =========================================================================
+ * Helper functions
+ * ====================================================================== */
+int SerialInputAvailable(SerialPort *serial_port)
+{
+    return (serial_port->UART->ISR & USART_ISR_RXNE);
+}
+
+uint8_t SerialReadChar(SerialPort *serial_port)
+{
+    return serial_port->UART->RDR;
+}
+
+/* =========================================================================
+ * SerialOutputStringDB  (unchanged from working implementation)
+ *   Interrupt-driven TX with double buffering.
+ * ====================================================================== */
+void SerialOutputStringDB(uint8_t *pt, SerialPort *serial_port)
+{
+    __disable_irq();
+
+    while (*pt && fill_index < (DB_BUFFER_SIZE - 1)) {
+        fill_buffer[fill_index++] = *pt++;
+    }
+    fill_buffer[fill_index] = '\0';
+
+    if (!is_transmitting) {
+        volatile uint8_t *temp = fill_buffer;
+        fill_buffer    = transmit_buffer;
+        transmit_buffer = temp;
+
+        transmit_length = fill_index;
+        fill_index      = 0;
+        transmit_index  = 0;
+
+        is_transmitting = 1;
+        serial_port->UART->CR1 |= USART_CR1_TXEIE;
+    }
+
+    __enable_irq();
+}
+
+/* =========================================================================
+ * sendMsg  - frame and transmit a structured packet
+ *
+ * Packet: [START | size | msg_type | body... | checksum | STOP]
+ * Uses polling TX so the packet goes out as a complete atomic unit,
+ * separate from the double-buffered debug string path.
+ * ====================================================================== */
+void sendMsg(void *data, uint8_t size, uint8_t msg_type, SerialPort *serial_port)
+{
+    uint8_t *bytes   = (uint8_t*)data;
+    uint8_t checksum = 0;
+
+    checksum ^= size;
+    checksum ^= msg_type;
+
+    /* Wait for any in-progress TX to complete before sending packet */
+    while (is_transmitting) {}
+
+    /* Helper macro: poll TXE then write byte */
+    #define TX_BYTE(b) \
+        do { \
+            while ((serial_port->UART->ISR & USART_ISR_TXE) == 0) {} \
+            serial_port->UART->TDR = (b); \
+        } while(0)
+
+    TX_BYTE(SERIAL_START_BYTE);
+    TX_BYTE(size);
+    TX_BYTE(msg_type);
+
+    for (uint8_t i = 0; i < size; i++) {
+        checksum ^= bytes[i];
+        TX_BYTE(bytes[i]);
+    }
+
+    TX_BYTE(checksum);
+    TX_BYTE(SERIAL_STOP_BYTE);
+
+    /* Wait for last byte to finish transmitting */
+    while ((serial_port->UART->ISR & USART_ISR_TC) == 0) {}
+
+    #undef TX_BYTE
+}
+
+/* =========================================================================
+ * processRxByte - feed one received byte into the packet state machine
+ * ====================================================================== */
+static void processRxByte(uint8_t byte)
+{
+    switch (rx_state) {
+
+        case RX_WAIT_START:
+            if (byte == SERIAL_START_BYTE) {
+                rx_state          = RX_WAIT_SIZE;
+                rx_checksum_calc  = 0;
+                rx_bytes_received = 0;
+            }
+            break;
+
+        case RX_WAIT_SIZE:
+            if (byte == 0 || byte > SERIAL_RX_BUFFER_SIZE) {
+                rx_state = RX_WAIT_START; /* invalid size - discard */
+            } else {
+                rx_expected_size   = byte;
+                rx_checksum_calc  ^= byte;
+                rx_state           = RX_WAIT_TYPE;
+            }
+            break;
+
+        case RX_WAIT_TYPE:
+            rx_msg_type        = byte;
+            rx_checksum_calc  ^= byte;
+            rx_state           = RX_READING_BODY;
+            break;
+
+        case RX_READING_BODY:
+            rx_buffer[rx_bytes_received] = byte;
+            rx_checksum_calc ^= byte;
+            rx_bytes_received++;
+            if (rx_bytes_received >= rx_expected_size) {
+                rx_state = RX_WAIT_CHECKSUM;
+            }
+            break;
+
+        case RX_WAIT_CHECKSUM:
+            if (byte == rx_checksum_calc) {
+                rx_state = RX_WAIT_STOP;
+            } else {
+                rx_state = RX_WAIT_START; /* bad checksum - discard */
+            }
+            break;
+
+        case RX_WAIT_STOP:
+            if (byte == SERIAL_STOP_BYTE) {
+                /* Complete valid packet - fire callback */
+                if (rx_complete_callback != 0) {
+                    rx_complete_callback(rx_buffer, rx_bytes_received);
+                }
+            }
+            rx_state = RX_WAIT_START;
+            break;
+
+        default:
+            rx_state = RX_WAIT_START;
+            break;
+    }
+}
+
+/* =========================================================================
+ * USART1_EXTI25_IRQHandler
+ *   - RX: feeds bytes into the packet state machine
+ *   - TX: double-buffer transmission (from working implementation)
+ * ====================================================================== */
+void USART1_EXTI25_IRQHandler(void)
+{
+    /* Clear framing/overrun errors */
+    if ((USART1->ISR & USART_ISR_FE_Msk) || (USART1->ISR & USART_ISR_ORE_Msk)) {
+        USART1->ICR = USART_ICR_FECF | USART_ICR_ORECF;
+        rx_state = RX_WAIT_START; /* reset state machine on error */
+        return;
+    }
+
+    /* RX: feed each incoming byte into the packet state machine */
+    if (USART1->ISR & USART_ISR_RXNE) {
+        while (SerialInputAvailable(&USART1_PORT)) {
+            uint8_t c = SerialReadChar(&USART1_PORT);
+            processRxByte(c);
+        }
+    }
+
+    /* TX: double-buffer transmission (unchanged from working code) */
+    if (is_transmitting && transmit_length == 0) {
+        USART1->CR1 &= ~USART_CR1_TXEIE;
+        is_transmitting = 0;
+    }
+
+    if ((USART1->ISR & USART_ISR_TXE) && is_transmitting) {
+        if (transmit_index < transmit_length) {
+            USART1->TDR = transmit_buffer[transmit_index++];
+        } else {
+            USART1->CR1 &= ~USART_CR1_TXEIE;
+
+            if (USART1_PORT.completion_function) {
+                USART1_PORT.completion_function(transmit_length);
+            }
+
+            is_transmitting = 0;
+
+            if (fill_index > 0) {
+                volatile uint8_t *temp = fill_buffer;
+                fill_buffer     = transmit_buffer;
+                transmit_buffer  = temp;
+
+                transmit_length = fill_index;
+                fill_index      = 0;
+                transmit_index  = 0;
+
+                is_transmitting = 1;
+                USART1->CR1 |= USART_CR1_TXEIE;
+            }
+        }
+    }
+}

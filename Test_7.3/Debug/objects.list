@@ -1,0 +1,7 @@
+"./Src/demo_uart.o"
+"./Src/main.o"
+"./Src/serial.o"
+"./Src/serial_comms.o"
+"./Src/syscalls.o"
+"./Src/sysmem.o"
+"./Startup/startup_stm32f303vctx.o"
