@@ -339,6 +339,8 @@ _Task C_
 
 ---
 
+Testing may also occur by connecting an oscilloscope to PA6 to show the pulse widths of 1ms, 1.5ms and 2ms every 20ms.
+
 _Task D_
 
 | Test | Function Call | Expected Result | How to Verify |
@@ -351,6 +353,57 @@ _Task D_
 | Board reset re-trigger | Reset board, observe behaviour | LD3 stays off for 1 second then turns on again | Proves one-shot fires reliably on each power cycle, not random behaviour |
 
 ### Notes
+1. How much would be required to make this software module able to use different timers - as in, could you have multiple regular intervals, or multiple one-shot delays at the same time?
+Currently TIM3 and TIM4 are hardcoded to handle timer.c and one_shot.c respectively, however different timers could be used by replacing the mentions of TIM3 to TIM4 and vice versa. This can be done manually, for example in timer.c:
+# Changing `timer.c` from TIM3 to TIM4
+- `RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;` becomes `RCC->APB1ENR |= RCC_APB1ENR_TIM4EN;`
+- `TIM3->CR1 &= ~TIM_CR1_CEN;` becomes `TIM4->CR1 &= ~TIM_CR1_CEN;`
+- `TIM3->PSC = 7999;` becomes `TIM4->PSC = 7999;`
+- `TIM3->ARR = (uint32_t)(period_ms - 1);` becomes `TIM4->ARR = (uint32_t)(period_ms - 1);`
+- `TIM3->EGR |= TIM_EGR_UG;` becomes `TIM4->EGR |= TIM_EGR_UG;`
+- `TIM3->SR &= ~TIM_SR_UIF;` becomes `TIM4->SR &= ~TIM_SR_UIF;`
+- `TIM3->DIER |= TIM_DIER_UIE;` becomes `TIM4->DIER |= TIM_DIER_UIE;`
+- `TIM3->CR1 |= TIM_CR1_CEN;` becomes `TIM4->CR1 |= TIM_CR1_CEN;`
+- `NVIC_SetPriority(TIM3_IRQn, 2);` becomes `NVIC_SetPriority(TIM4_IRQn, 2);`
+- `NVIC_EnableIRQ(TIM3_IRQn);` becomes `NVIC_EnableIRQ(TIM4_IRQn);`
+- `void TIM3_IRQHandler(void)` becomes `void TIM4_IRQHandler(void)`
+- `TIM3->SR &= ~TIM_SR_UIF;` becomes `TIM4->SR &= ~TIM_SR_UIF;`
+Alternatively, an easier solution could be to have an alternate funciton for handling if a given timer requested is TIM3 or TIM4 - this allows for 2 timers working at the same time. This funciton would have the requested timer to be used as an input. In this case only 2 timers (timer only no one-shot), 2 one-shots (no timer) or 1 one-shot and 1-timer code to be run at a time due to TIM3 and TIM4. However, TIM2 can also be used if the task 1 code is not being run, such that 3 different timers can be used.
+
+2. What happens if one software module sets a delay, and before it elapses a different software module also tries to set a delay.
+If the same timer is tried to be used then the line `if (TIM4->CR1 & TIM_CR1_CEN) return;` rejects the request to use TIM4 as well in the shot_back demo. Otherwise, without this the callback never fires and after the given delay the next callback run is fired instead.
+
+3. How would you drive multiple servo motors using your timer and PWM modules?
+   TIM3 has 4 channels (CH1 to CH4) corresponding to pins PA6, PA7, PB0 and PB1. We can append our configuration to account for all channels:
+```
+//C MR1 for CH1 and CH2
+TIM3->CCMR1 &= ~(TIM_CCMR1_OC1M | TIM_CCMR1_OC1PE |
+                  TIM_CCMR1_OC2M | TIM_CCMR1_OC2PE);
+TIM3->CCMR1 |=  (TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1PE)  // CH1 PWM mode 1
+             |  (TIM_CCMR1_OC2M_2 | TIM_CCMR1_OC2M_1 | TIM_CCMR1_OC2PE); // CH2 PWM mode 1
+
+/* CCMR2 covers CH3 and CH4 */
+TIM3->CCMR2 &= ~(TIM_CCMR2_OC3M | TIM_CCMR2_OC3PE |
+                  TIM_CCMR2_OC4M | TIM_CCMR2_OC4PE);
+TIM3->CCMR2 |=  (TIM_CCMR2_OC3M_2 | TIM_CCMR2_OC3M_1 | TIM_CCMR2_OC3PE)  // CH3 PWM mode 1 
+             |  (TIM_CCMR2_OC4M_2 | TIM_CCMR2_OC4M_1 | TIM_CCMR2_OC4PE); // CH4 PWM mode 1 
+
+// Enable all 4 channel outputs in CCER
+TIM3->CCER |= TIM_CCER_CC1E | TIM_CCER_CC2E | TIM_CCER_CC3E | TIM_CCER_CC4E;
+
+// Set all channels to centre position 
+TIM3->CCR1 = SERVO_POS_CENTRE_US;
+TIM3->CCR2 = SERVO_POS_CENTRE_US;
+TIM3->CCR3 = SERVO_POS_CENTRE_US;
+TIM3->CCR4 = SERVO_POS_CENTRE_US;
+```
+After this we would define the GPIO pins:
+```
+gpio_init_af(GPIOA, 6, 2);  // PA6 - TIM3 CH1 AF2
+gpio_init_af(GPIOA, 7, 2);  // PA7 - TIM3 CH2 AF2
+gpio_init_af(GPIOB, 0, 2);  // PB0 - TIM3 CH3 AF2
+gpio_init_af(GPIOB, 1, 2);  // PB1 - TIM3 CH4 AF2
+```
 
 
 ## Exercise 7.3 - Serial Interface
