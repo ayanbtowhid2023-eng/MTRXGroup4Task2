@@ -407,20 +407,180 @@ gpio_init_af(GPIOB, 1, 2);  // PB1 - TIM3 CH4 AF2
 
 
 ## Exercise 7.3 - Serial Interface
-
+ 
 ### Summary
-
+This exercise implements a complete serial (UART) communication module for the STM32F3 Discovery board. It provides debug string output, structured packet transmission with framing and checksums, and interrupt-driven packet reception with both circular-buffer and double-buffer modes.
+ 
+Two UART ports are used:
+- **USART1 (PC4/PC5)** — connected to the ST-Link VCP, debug strings appear directly in `screen` on your Mac via USB
+- **USART3 (PC10/PC11)** — used for structured packet transmission and reception, tested with a loopback jumper wire
+The packet format is: `[ START(0x02) | SIZE | TYPE | BODY... | STOP(0x03) | CHECKSUM ]` where the checksum is the XOR of all fields including the start and stop bytes.
+ 
+---
+ 
 ### Usage
-
+ 
+**Hardware setup:**
+- USB cable from board to Mac (powers the board and provides the USART1 debug channel)
+- Jumper wire from **PC10 (USART3 TX)** to **PC11 (USART3 RX)** for the loopback test
+**To view debug output:**
+```bash
+screen /dev/tty.usbmodem103 115200
+```
+ 
+**To select which task to demonstrate**, set `DEMO_PART` in `main.c`:
+```c
+#define DEMO_PART 'e'   // tasks a-e: polling TX, interrupt circular-buffer RX
+#define DEMO_PART 'f'   // task f:    interrupt TX, double-buffer RX
+```
+ 
+**File structure:**
+- `serial.h` — public interface: port handles, packet constants, all function declarations
+- `serial.c` — full implementation: both port instances, IRQ handlers, all functions
+- `main.c` — demonstration: sends a `SensorData` struct as a packet, receives it via loopback, verifies data matches
+---
+ 
 ### Valid input
-
-### Functions and modularity
-
-
-
+ 
+#### `SerialInitialise(uint32_t baudRate, SerialPort *serial_port, void (*completion_function)(uint32_t))`
+ 
+| Parameter | Valid Range | Notes |
+|-----------|-------------|-------|
+| `baudRate` | `BAUD_9600` to `BAUD_115200` | Use the enum constants defined in serial.h |
+| `serial_port` | `&USART1_PORT` or `&USART3_PORT` | Must not be NULL |
+| `completion_function` | Any valid function pointer | May be NULL - called after each TX buffer completes |
+ 
+#### `sendMsg(void *data, uint8_t size, uint8_t type, SerialPort *serial_port)`
+ 
+| Parameter | Valid Range | Notes |
+|-----------|-------------|-------|
+| `data` | Any valid pointer | Points to the struct/buffer to transmit |
+| `size` | 1 – 64 | Use `sizeof(your_struct)`. Must not exceed `RX_BODY_SIZE` |
+| `type` | 0x00 – 0xFF | Application-defined message type identifier |
+| `serial_port` | `&USART1_PORT` or `&USART3_PORT` | Target port |
+ 
+#### `sendMsgIT(void *data, uint8_t size, uint8_t type, SerialPort *serial_port)` (task f)
+ 
+| Parameter | Valid Range | Notes |
+|-----------|-------------|-------|
+| `data` | Any valid pointer | Same as `sendMsg` |
+| `size` | 1 – 64 | Must not exceed `RX_BODY_SIZE` |
+| Return value | 0 or 1 | Returns 0 if TX is already busy, 1 on success |
+ 
+#### `receiveMsg(SerialPort *serial_port, void (*callback)(uint8_t*, uint8_t, uint8_t))`
+ 
+| Parameter | Valid Range | Notes |
+|-----------|-------------|-------|
+| `serial_port` | `&USART3_PORT` | Port that has had `enable_interrupt()` called |
+| `callback` | Any valid function pointer | Called with `(body, size, type)` on successful packet receipt. May be NULL |
+ 
+---
+ 
+### Functions and Modularity
+ 
+#### serial.h / serial.c
+ 
+The full struct definition of `_SerialPort` is hidden inside `serial.c` — callers only see the opaque `SerialPort` typedef. All hardware register details are encapsulated in the two pre-instantiated port objects `USART1_PORT` and `USART3_PORT`. No other file needs to know which GPIO pins, clock masks, or alternate function values are involved.
+ 
+**`SerialInitialise(baudRate, serial_port, completion_function)`**
+- Enables clocks for the GPIO port and UART peripheral
+- Configures GPIO pins to alternate function mode using `|=` on MODER and AFR registers to avoid disturbing other pins on the same port
+- Sets the baud rate register and enables TX, RX, and the UART peripheral
+- Does not enable interrupts — call `enable_interrupt()` or `enable_interrupt_part_f()` separately
+**`enable_interrupt(serial_port)`**
+- Enables the RXNE interrupt on the UART and registers the USART3 IRQ in the NVIC
+- Disables global interrupts during setup to prevent a race condition on the NVIC registers
+- Used for tasks a–e (circular buffer receive)
+**`sendString(pt, serial_port)`** / **`SerialOutputString(pt, serial_port)`**
+- Blocking polling TX of a null-terminated string
+- Polls the TXE flag before writing each byte to TDR
+- Calls the completion callback with the byte count when done
+**`calculateChecksum(data, size, type)`**
+- XOR of: `START_BYTE`, `size`, `type`, all body bytes, `STOP_BYTE`
+- Computed before transmission and verified after reception
+**`sendMsg(data, size, type, serial_port)`**
+- Assembles and transmits a complete framed packet using polling TX
+- Packet layout: `[ 0x02 | size | type | body[0..size-1] | 0x03 | checksum ]`
+- Blocking — returns only after the last byte is written to TDR
+**`receiveMsg(serial_port, callback)`**
+- Reads bytes from the circular buffer filled by the RXNE ISR
+- Parses the packet format step by step with per-byte timeouts
+- Verifies the checksum and fires the callback with `(body, size, type)` on success
+- Prints an error string to USART1 on stop-byte or checksum failure
+- Non-blocking on timeout — returns immediately if no packet arrives within the timeout window
+**`USART3_EXTI28_IRQHandler`**
+- In normal mode (tasks a–e): reads each incoming byte from RDR and stores it in the circular buffer `s_rx_buffer` using a write pointer. Clears overrun errors to prevent the UART from locking up.
+- In part-f mode (task f): routes incoming bytes to `part_f_rx_process_byte()` for the double-buffer state machine, and also handles TX interrupts to send bytes from `s_tx_buffer` one at a time.
+**`enable_interrupt_part_f(serial_port)`** (task f)
+- Resets all TX and RX double-buffer state before enabling interrupts
+- Enables RXNEIE and the NVIC — from this point the IRQ handles both TX and RX
+**`sendMsgIT(data, size, type, serial_port)`** (task f)
+- Loads the framed packet into `s_tx_buffer`, sets `s_tx_busy = 1`, and enables TXEIE
+- Returns immediately — the IRQ handler sends one byte per TXE interrupt
+- Returns 0 if TX is already busy, 1 on success
+**`sendStringIT(pt, serial_port)`** (task f)
+- Same pattern as `sendMsgIT` but for a null-terminated debug string
+**`receiveMsgDoubleBuffer(serial_port, callback)`** (task f)
+- Checks `s_rx_msg_ready` flag set by the ISR
+- Fires the callback with the completed buffer while the ISR continues receiving into the other buffer
+- Uses `__disable_irq()` / `__enable_irq()` guards around shared state access
+**`part_f_rx_process_byte(byte)`** (internal, task f)
+- Six-state machine: `WAIT_START → READ_SIZE → READ_TYPE → READ_BODY → READ_STOP → READ_CHECKSUM`
+- On valid checksum: marks the active buffer as ready and switches the ISR to the other buffer
+- On dropped message (previous packet not yet consumed): sets `s_rx_dropped_msg` flag
+---
+ 
 ### Testing
-
+ 
+_Tasks a–e_ (set `DEMO_PART 'e'`, jumper PC10→PC11)
+ 
+| Test | Expected Result | How to Verify |
+|------|----------------|---------------|
+| Power on | Debug strings appear in `screen` immediately | `screen /dev/tty.usbmodem103 115200`, press reset |
+| `sendString` output | `"MTRX2700 Exercise 3 - Serial Module"` printed | Visible in screen terminal |
+| `sendMsg` packet format | Correct framing bytes visible | Set breakpoint in `sendMsg`, step through and inspect each byte written to TDR |
+| Loopback test passes | `"Loopback test PASSED! x=100 y=200 z=300 ts=12345"` | Printed in screen terminal after reset |
+| Checksum error injection | `"ERR: bad checksum"` printed | Temporarily corrupt a body byte in `TX_SENSOR_DATA` and observe error output |
+| Stop byte error injection | `"ERR: no stop byte"` printed | Temporarily change `SERIAL_STOP_BYTE` on TX side only |
+| Interrupt-driven RX | ISR is called from interrupt vector, not main loop | Set breakpoint in `USART3_EXTI28_IRQHandler`, check Call Stack panel shows interrupt context |
+| Callback fires with correct data | `on_message_received` called with `size=12`, `type=0x01` | Set breakpoint in callback, inspect `data` and `size` in Variables panel |
+| NULL callback | No crash | Pass `NULL` to `receiveMsg` - board should not hang or reset |
+| Oversized packet | Silently discarded, no crash | Send a packet with `size > 64` from external tool |
+ 
+_Task f_ (set `DEMO_PART 'f'`, jumper PC10→PC11)
+ 
+| Test | Expected Result | How to Verify |
+|------|----------------|---------------|
+| Interrupt TX sends packet | `"TX complete, waiting for packet..."` printed | Visible in screen terminal |
+| Double-buffer RX receives packet | `"Loopback test PASSED!"` printed | Visible in screen terminal |
+| `sendMsgIT` is non-blocking | Returns before packet is fully sent | Set breakpoint at line after `sendMsgIT` call - hits immediately while IRQ sends in background |
+| TX ISR fires | Bytes sent one per TXE interrupt | Set breakpoint in `USART3_EXTI28_IRQHandler` TX section, observe `s_tx_index` incrementing |
+| Double-buffer swap | ISR writes to one buffer while callback processes other | Inspect `s_rx_active_buf` and `s_rx_ready_buf` in Expressions panel |
+| TX busy guard | `sendMsgIT` returns 0 if called while TX in progress | Call `sendMsgIT` twice in quick succession, check return value of second call |
+ 
+---
+ 
 ### Notes
+ 
+**How do you handle the case when there is more data received than will fit in the buffer?**
+The `size` field in the packet header is checked against `RX_BODY_SIZE` (64 bytes) before any body bytes are read. If the declared size exceeds the buffer, the packet is discarded immediately and the state machine resets to `WAIT_START`. For the circular buffer, if the write pointer would lap the read pointer the incoming byte is silently dropped and the overrun error flag is cleared so the UART does not lock up.
+ 
+**How do you determine when the incoming data has finished being received? Do you use a terminating character? What if this byte is missed or if the same byte appears elsewhere in the received data?**
+The packet uses both a STOP byte (0x03) and an explicit SIZE field in the header. Reception is primarily length-driven — the receiver reads exactly `size` body bytes before expecting the STOP byte, so a 0x03 value appearing inside the body is not treated as termination. The STOP byte is only checked after all `size` body bytes have been read. If the STOP byte is missed or corrupted, `receiveMsg` prints an error and discards the packet. A final XOR checksum over all fields provides a further integrity check — even if a 0x03 body byte happened to coincide with the stop byte position, the checksum would catch any resulting data corruption.
+ 
+**What are some potential advantages and disadvantages of passing structures and raw bytes rather than strings?**
+Passing structures is more compact and efficient — a `SensorData` struct sends exactly 12 bytes rather than a formatted ASCII string that could be 40+ characters for the same data. It also removes ambiguity since the receiver knows the exact byte layout from the struct definition. The disadvantage is that both sides must agree on the same struct layout, and endianness matters if the boards have different architectures. Strings are easier to debug in a terminal but wasteful in bandwidth and parsing overhead.
+ 
+**How do other software modules interact with the received data? Can they request the latest data? What happens with the incoming memory buffer after someone has requested the data? Do you clear the buffer? Do you have more than one buffer?**
+Other modules interact with received data entirely through the callback function registered with `receiveMsg` or `receiveMsgDoubleBuffer`. When a complete packet arrives, the callback is fired with a pointer to the body bytes, the size, and the message type. It is the callback's responsibility to copy the data out immediately — the internal buffer is not cleared after the callback returns, but it may be overwritten by the next incoming packet as soon as the ISR receives more data. In circular buffer mode there is one shared buffer and no protection against the next packet overwriting an unread one. In double-buffer mode (task f) there are two body buffers — the ISR switches to the second buffer as soon as the first is marked ready, so the callback can safely process the first buffer while new data fills the second. The `s_rx_dropped_msg` flag is set if a new packet arrives before the previous one has been consumed.
+ 
+**What happens if someone requests new serial port data before the current stream of data is complete (i.e. before the stream is terminated)?**
+In circular buffer mode, `receiveMsg` reads from the buffer up to the point it has been filled by the ISR. If called before a complete packet has arrived, each per-step timeout expires and the function returns without firing the callback. The partial bytes remain in the circular buffer and the next call to `receiveMsg` will start from the START byte search. In double-buffer mode, `receiveMsgDoubleBuffer` simply returns immediately if `s_rx_msg_ready` is not set, so calling it before a packet is complete has no effect and no data is lost.
+ 
+**What if someone keeps working on the serial RX buffer at the same time as new data comes in?**
+In circular buffer mode, the ISR writes to `s_write_pos` and the main loop reads from `s_read_pos`. These are separate indices on a fixed-size circular buffer so they can operate concurrently without corruption, as long as the buffer does not overflow. In double-buffer mode, the ISR always writes to `s_rx_body_buf[s_rx_active_buf]` while the callback reads from `s_rx_body_buf[s_rx_ready_buf]`. After a successful packet is received these are guaranteed to be different buffers, and the index swap is protected by `__disable_irq()` / `__enable_irq()` guards to prevent a race condition if the IRQ fires mid-swap.
+
+
 
 ## Exercise 7.4 - I2C Sensor Interface
 ### Summary
