@@ -652,13 +652,6 @@ This exercise integrates all modules developed in Exercises 7.1 to 7.4 into a tw
 - Connect Board 1 PC10 (USART3 TX) to Board 2 PC11 (USART3 RX) with a jumper wire
 - Connect Board 1 GND to Board 2 GND
 - Connect servo signal wire to PA6 on Board 2, servo VCC to 5V, servo GND to GND
-- USB cable to each board for power and debug output
-**Wiring diagram:**
-```
-Board 1 PC10 (USART3 TX)  ------>  Board 2 PC11 (USART3 RX)
-Board 1 GND               ------>  Board 2 GND
-                                   Board 2 PA6  ------>  Servo signal
-```
  
 **To view debug output:**
 ```bash
