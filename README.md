@@ -634,11 +634,10 @@ Physical sanity checks during development:
 - Leave board still after calibration: gyro dps values sit near zero
 
 ### Notes
-- I2C GPIO pins must be push-pull with pull-down resistors on this board for the sensor to respond reliably
-- The FPU is explicitly enabled in `compass_init()` via `SCB->CPACR` before any float math (`atan2f`, `sqrtf`) runs. Skipping this causes a hard fault
-- `compass_init()` runs a manual bus recovery (9 SCL clocks) before enabling the peripheral. This fixes the case where the sensor is holding SDA low after an unclean reset
-- Debugger breakpoints stall I2C transfers and return corrupted data, which is why UART and LED verification are used instead of single-stepping
-- Hard-iron magnetometer calibration is not currently applied. The standard method is to rotate the board through all orientations, record the min and max of each axis, compute the midpoint offsets, and subtract them from the raw readings before running atan2 for heading
+- **Do the readings correspond to cardinal directions?** Not directly. The raw `atan2(y, x)` output rotates correctly with the board (a 90 degree rotation produces roughly a 90 degree change in heading), but the zero reference does not line up with magnetic north and each axis carries a constant bias. This is caused by hard-iron distortion: permanent magnetic fields from components on the PCB itself (the ST-LINK, nearby magnetic components, DC currents in the board's own traces) add a fixed offset to every sample. The raw heading is reliable for relative rotation but not for absolute compass direction
+- **How to calibrate the sensor?** The standard fix is hard-iron calibration. Rotate the board slowly through a full 360 degrees in the horizontal plane while logging `raw_x` and `raw_y`, record the min and max of each axis across the rotation, then compute the per-axis offset as the midpoint: `offset_x = (max_x + min_x) / 2` and `offset_y = (max_y + min_y) / 2`. Subtract these offsets from every raw reading before running `atan2f`. This re-centres the locus of samples around the origin so the angle returned is true relative to the sensor's internal axes. A full implementation would also apply soft-iron correction (per-axis scale factors for when the locus is elliptical rather than circular) and tilt compensation using the accelerometer so heading stays accurate when the board is not level
+
+
 
 ## Exercise 7.5 - Integration Task
 
