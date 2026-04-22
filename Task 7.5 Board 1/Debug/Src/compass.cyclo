@@ -1,0 +1,5 @@
+../Src/compass.c:17:16:i2c_write_reg	9
+../Src/compass.c:34:16:i2c_read_regs	12
+../Src/compass.c:56:6:compass_init	10
+../Src/compass.c:101:9:compass_read	4
+../Src/compass.c:116:18:compass_get_latest	2
