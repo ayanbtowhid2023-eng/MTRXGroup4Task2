@@ -30,8 +30,8 @@
 
 // Un-comment 1 at a time for each demo
 
-//#define TASK_A_DEMO
-#define TASK_C_DEMO
+#define TASK_A_DEMO
+//#define TASK_C_DEMO
 // #define TASK_D_DEMO
 
 

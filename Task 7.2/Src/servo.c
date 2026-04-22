@@ -51,7 +51,7 @@ void servo_init(void) // Takes no inputs
 
     TIM3->CR1 |= TIM_CR1_ARPE; // Sets ARPE (Auto Reload Preload Enable) which enables the pre-load register for ARR (Auto Reload Register), such that shadow registers aren't immediately written to, which may result in undesired behaviour
 
-    TIM3->EGR |= TIM_EGR_UG;    // UG bit of the Event Generation Register (EGR) is Update Generation. At runtime it copies everything into the shadow registers, such that there isn't one cycle of no action
+    TIM3->EGR |= TIM_EGR_UG;    // UG (Update Generation) bit (bit 0) of the Event Generation Register (EGR) is Update Generation. At runtime it copies everything into the shadow registers, such that there isn't one cycle of no action
     TIM3->SR  &= ~TIM_SR_UIF;   // Clears the Update Interrupt Flag (UIF) such that no interrupts are fired when we enable the timer
 
     TIM3->CR1 |= TIM_CR1_CEN; // Now that all configuration has occurred we may start the counter. This line sets CEN (Counter Enable) of Control Register 1, which starts the timer.
