@@ -25,9 +25,111 @@ Remy:
 
 ## Exercise 7.1 - Digital I/O
 
+# MTRX2700 — Exercise 7.1: Digital I/O
+## STM32F3 Discovery Board
 
-### Notes
 
+## Summary
+On power-on LED3 lights. Each press of the blue button steps to the next LED (LED3 → LED4 → ... → LED10 → LED3). Nothing moves without a button press. All LED changes are driven by the button interrupt — the `while(1)` loop in `main.c` is empty.
+
+
+---
+
+## Usage
+
+1. Create a new STM32CubeIDE project targeting `STM32F303VCTx`
+2. Copy all `Inc/` files into the project `Inc/` folder
+3. Copy all `Src/` files into the project `Src/` folder, replacing the generated `main.c`
+4. Set include path to `../Inc` only
+5. Build and flash
+
+To demo Task C — in `on_button_press()` comment out `led_set_rate_limited()` and uncomment `discovery_led_set()`
+
+To demo Task E — leave `led_set_rate_limited()` in (default as delivered)
+
+---
+
+
+## Functions and Modularity
+
+
+### gpio.h / gpio.c
+Generic GPIO module. Works on any port and pin. No board-specific knowledge.
+
+- **`gpio_init(port, pin, direction)`** — enables peripheral clock, sets MODER register
+- **`gpio_write(port, pin, state)`** — drives pin high or low via BSRR register
+- **`gpio_read(port, pin, *state)`** — reads current pin state from IDR register
+- **'gpio_init_af(port, pin, af)`** — sets alternate function mode for UART/I2C/PWM in Exercise 5
+- All functions validate inputs and return -1 on error
+
+### led.h / led.c
+Generic LED module. Pin assignments injected at init time via `LED_Descriptor` array — no hardcoded pins in this file.
+
+- **`led_init(descriptors, count, callback)`** — configures all LEDs as outputs, registers optional change callback
+- **`led_set(id, state)`** / **`led_get(id)`** — only access points to private `led_state[]`
+- **`led_clear_all()`** — turns all LEDs off
+- **`led_set_single(id)`** — lights one LED, clears all others, used by Exercise 5 for compass heading display
+- `led_state[]` is declared `static` — completely private to `led.c`, inaccessible from any other file
+
+### button.h / button.c
+Generic button module. All hardware details injected via `Button_Descriptor` at init time.
+
+- **`button_init(descriptor, callback)`** — configures EXTI interrupt on given pin, registers callback
+- **`button_read()`** — polls current pin state without using interrupts
+- **`button_get_flag()`** / **`button_clear_flag()`** — non-ISR press detection used by Exercise 5
+- **`EXTI0_IRQHandler`** — clears pending flag, sets press flag, calls registered callback
+
+### discovery.h / discovery.c
+The only file with board-specific knowledge. Knows PE8–PE15 are LEDs and PA0 is the button. All other modules are generic and work unchanged on any other board.
+
+- **`discovery_init(callback)`** — single call sets up all 8 LEDs and the button with correct board pins
+- **`discovery_led_set(id, state)`** / **`discovery_led_get(id)`** / **`discovery_led_clear_all()`** — LED access
+- **`discovery_led_set_single(id)`** — lights one LED, clears all others, used by Exercise 5
+- **`discovery_button_pressed()`** — one-shot flag read, auto-clears on read, used by Exercise 5
+
+### led_timer.h / led_timer.c
+TIM2 configured at 1ms tick (8MHz HSI, PSC=7999, ARR=1). Provides the system clock and LED rate limiter.
+
+- **`led_timer_init(min_interval_ms)`** — starts TIM2, sets minimum allowed interval between LED changes
+- **`led_set_rate_limited(id, state)`** — queues an LED change and returns immediately, never blocks
+- **`get_tick()`** — returns ms since init, used by Exercise 4 for sensor data timestamps
+- **`TIM2_IRQHandler`** — increments tick every 1ms, applies queued LED change once interval has elapsed
+
+### main.c
+Initialises all modules, lights LED3 on startup, then sits in an empty `while(1)`. All behaviour is interrupt driven.
+
+- **`on_button_press()`** — ISR callback, reads current LED state via `discovery_led_get()`, steps to next LED
+
+---
+
+## Testing
+
+| Test | Expected Result | Pass/Fail |
+|------|----------------|-----------|
+| Power on | LED3 lit, all others off | |
+| Single button press | Steps to next LED in sequence | |
+| Full sequence — 8 presses | Returns to LED3 after LED10 | |
+| Rapid button presses | Steps at most once per 200ms | |
+| Swap to `discovery_led_set` in callback | Responds instantly to every press | |
+| Comment out `discovery_led_get` in callback | LEDs still step correctly | |
+| `gpio_init` called with NULL port | Returns -1, no crash | |
+| `gpio_init` called with pin > 15 | Returns -1, no crash | |
+| `led_set` called with id > 7 | Returns -1, no crash | |
+| `led_get` called with id > 7 | Returns -1, no crash | |
+
+---
+
+## Notes
+
+
+What would happen if many different software modules can make changes to the LEDs?
+All changes must go through led_set() — the single write path into the private led_state[] array. No module can corrupt another's LED state without going through this defined interface. Without this controlled access, multiple modules writing to the LEDs at the same time would produce unpredictable behaviour where one module silently overwrites another's changes.
+
+What would happen if the button handling callback function takes a long time to complete?
+The callback runs inside the ISR. A long callback blocks other interrupts at equal or lower priority from firing, can cause missed button presses, and stops the TIM2 tick from incrementing which breaks all timing across the system. The callback is kept minimal — it only reads the current LED state and queues a request via led_set_rate_limited(), which returns immediately.
+
+What checks do you need to consider when setting up or using a GPIO pin for input or output?
+gpio_init validates that the port pointer is not NULL, the pin number is between 0 and 15, and the port is one of the six known valid ports before enabling its clock. For input pins a pull-down is configured so the pin reads LOW when floating rather than returning an undefined value. All functions return -1 on any failure so the caller can detect and handle errors rather than silently proceeding with a misconfigured pin.
 ## Exercise 7.2 - Timer Interface
 
 ### Summary
