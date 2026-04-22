@@ -163,6 +163,19 @@ Task B is demonstrated by uncommening `#define TASK_A_DEMO` and in the main code
 // timer_set_period_ms(100); // Sets the new period
 ```
 
+Task A Demo
+- 
+
+Task B Demo
+- 
+
+Task C Demo
+- 
+
+Task D Demo
+- 
+
+
 ### Valid input
 
 ## `timer_init(uint32_t period_ms, TimerCallback callback)`
@@ -231,11 +244,55 @@ Task B is demonstrated by uncommening `#define TASK_A_DEMO` and in the main code
 
 
 ### Functions and modularity
-#### 
+#### timer.c
+First we define `period_ms` and `cb` which represent the period of the timer and the callback function pointer respectively. These are only accessible in this file, and must use get and set functions to access externally.
+
+`TIM_IRQHandler`
+- This is the interrupt request handler, which runs the callback function after the interrupt has been fired. This is also inaccessible outside of this file. The use of a callback function allows for greater modularity as any function may be called once the interrupt is fired. We use TIM3 for this functionality.
+
+`timer_init`
+- This initialises the timer, such that each 'tick' of the clock occurs every millisecond and the counter counts up to the given period before another interrupt is fired once configuration is completed.
+
+`void timer_set_period_ms`
+- Set function that allows for the period (set/inaccessible variable in file) to be changed. Writes the new period also into the Auto Reload Register, such that the counter may count up to this value before firing the next interrupt. 
+
+`timer_get_period_ms`
+- Allows us to read the inaccessible/private period value outside of this module file.
+
+`timer_set_callback`
+- Set function that allows for the callback function to be changed.
+
+#### servo.c
+`pulse_us = SERVO_POS_CENTRE_US` is statically defined to define the centre position of the servo.
+
+`servo_init`
+- Resets the pulse width to match the centre posiiton each time the servo is initialised
+- We enable TIM3 as the clock and configuring the hardware for PWM mode. The clock and auto-reload register is scaled such that each 'tick' corresponds to 1ms and the period of each pulse is 20ms (5Hz frequency).
+- CCER (Capture Compare Enable Register) is also enabled such that the PWM signal is outputted via pin PA6. 
+- Once all configuration occurs, then the timer may begin.
+
+`servo_set_position`
+- Sets new pulse as the pulse fed into the timer and writes it directly into CCR1 for the new pulse width to be appended during the next cycle.
+
+`servo_get_position`
+- 'Get' function that allows us to read the position value/ the pulse width externally.
+
+#### one_shot.c
+`stored_callback` is privately initialised to NULL. This is the function pointer for the callback funciton.
+
+`TIM4_IRQHandler`
+- Handles the interrupt request. This interrupt is fired by the counter overflowing
+- Once the counter overflows, we clear the counter enable bit such that the funciton is only called once with ` TIM4->CR1 &= ~TIM_CR1_CEN;`
+- The callback function is then called
+
+`one_shot_trigger`
+- Enables the TIM4 clock and scales such that each tick is 1 ms.
+- Once the timer and interrupts are properly configured the counter is enabled.
 
 ### Testing
 
 ### Notes
+
 
 ## Exercise 7.3 - Serial Interface
 
