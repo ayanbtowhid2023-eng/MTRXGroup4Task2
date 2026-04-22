@@ -30,9 +30,9 @@
 
 // Un-comment 1 at a time for each demo
 
-#define TASK_A_DEMO
+//#define TASK_A_DEMO
 //#define TASK_C_DEMO
-// #define TASK_D_DEMO
+ #define TASK_D_DEMO
 
 
 // Tasks A and B
@@ -40,7 +40,7 @@
 
 static void on_timer_a(void) // Call-back function for toggling LED's
 {
-    static int state = 0;
+    static int state = 0; // initialises state as off
     if (state == 0) {
         gpio_write(GPIOE, 8, GPIO_PIN_HIGH); // Turns LED on
         state = 1;
@@ -60,7 +60,7 @@ int main(void)
 
     // TASK B: un-comment these three lines to demo get/set.
     // uint32_t current = timer_get_period_ms();  // Gets the current period
-    // (void)current; // Removes memory warning
+    //(void)current; // Removes memory warning
     // timer_set_period_ms(100); // Sets the new period
 
     while (1) {}
@@ -104,7 +104,7 @@ int main(void)
     gpio_write(GPIOE, 8, GPIO_PIN_LOW);
 
     /* TASK D: delay in ms and callback pointer passed as parameters */
-    one_shot_trigger(1000, one_shot_callback);
+    one_shot_trigger(5000, one_shot_callback);
 
     while (1) {}
 }

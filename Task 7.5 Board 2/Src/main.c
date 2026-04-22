@@ -28,7 +28,7 @@
  *   0-44 deg   -> LED 0 (North)
  *   45-89 deg  -> LED 1 (NE)
  *   90-134 deg -> LED 2 (East)
- *   ... and so on
+ *   135 - 179 deg -> LED 4 (South East)
  */
 
 #include <stdint.h>
@@ -36,22 +36,20 @@
 #include <string.h>
 #include "stm32f303xc.h"
 
-/* Ex2 — servo */
+// Ex2 — servo
 #include "servo.h"
 
-/* Ex1 — LEDs + discovery board */
+// Ex1 — LEDs + discovery board
 #include "discovery.h"
 #include "led_timer.h"
 
-/* Ex3 — serial */
+// Ex3 — serial
 #include "serial.h"
 
-/* Ex5 — shared message definition */
+// Ex5 — shared message definition
 #include "msg.h"
 
-/* -----------------------------------------------------------------------
- * Private state
- * --------------------------------------------------------------------- */
+// Private State
 static char debug_buf[128];
 
 /* -----------------------------------------------------------------------
@@ -62,14 +60,14 @@ static char debug_buf[128];
  *   pulse_us = 1000 + (heading / 360.0) * 1000
  * This maps the full compass range across the full servo range.
  * --------------------------------------------------------------------- */
-static uint32_t heading_to_pulse_us(float heading_deg)
+static uint32_t heading_to_pulse_us(float heading_deg) // Bounding the heading to 0 and 360 degrees
 {
     if (heading_deg < 0.0f)   heading_deg = 0.0f;
     if (heading_deg > 360.0f) heading_deg = 360.0f;
 
-    uint32_t pulse = (uint32_t)(1000.0f + (heading_deg / 360.0f) * 1000.0f);
+    uint32_t pulse = (uint32_t)(1000.0f + (heading_deg / 360.0f) * 1000.0f); // Formula for converting the heading into the pulse
 
-    /* Clamp to valid servo range */
+    // Bounding Servo position
     if (pulse < SERVO_POS_MIN_US) pulse = SERVO_POS_MIN_US;
     if (pulse > SERVO_POS_MAX_US) pulse = SERVO_POS_MAX_US;
 
@@ -87,7 +85,7 @@ static uint8_t heading_to_led(float heading_deg)
     if (heading_deg < 0.0f)   heading_deg = 0.0f;
     if (heading_deg > 360.0f) heading_deg = 360.0f;
 
-    /* Each sector = 45 degrees, 8 sectors total */
+    // Each sector = 45 degrees, 8 sectors total
     uint8_t sector = (uint8_t)(heading_deg / 45.0f);
     if (sector > 7) sector = 7;
     return sector;
@@ -103,24 +101,24 @@ static uint8_t heading_to_led(float heading_deg)
  * --------------------------------------------------------------------- */
 static void on_message_received(uint8_t *data, uint8_t size, uint8_t type)
 {
-    /* Validate type and size */
+    // Validate type and size
     if (type != MSG_TYPE_MAG || size != sizeof(MagMessage_t))
     {
         sendString((uint8_t *)"ERR: unexpected message type/size\r\n", &USART1_PORT);
         return;
     }
 
-    /* Unpack message body */
+    // Unpack message body
     MagMessage_t msg;
     memcpy(&msg, data, sizeof(MagMessage_t));
 
     if (msg.button_flag == 0)
     {
-        /* --- SERVO MODE --- */
+        // SERVO MODE
         uint32_t pulse = heading_to_pulse_us(msg.heading_deg);
         servo_set_position(pulse);
 
-        /* Turn all LEDs off in servo mode */
+        // Turn all LEDs off in servo mode
         discovery_led_clear_all();
 
         snprintf(debug_buf, sizeof(debug_buf),
@@ -130,11 +128,11 @@ static void on_message_received(uint8_t *data, uint8_t size, uint8_t type)
     }
     else
     {
-        /* --- LED MODE --- */
+        // LED MODE
         uint8_t led_idx = heading_to_led(msg.heading_deg);
         discovery_led_set_single(led_idx);
 
-        /* Centre servo while in LED mode */
+        // Centre servo while in LED mode
         servo_set_position(SERVO_POS_CENTRE_US);
 
         snprintf(debug_buf, sizeof(debug_buf),
@@ -144,45 +142,48 @@ static void on_message_received(uint8_t *data, uint8_t size, uint8_t type)
     }
 }
 
-/* -----------------------------------------------------------------------
- * Completion callback for USART1 debug strings
- * --------------------------------------------------------------------- */
+// Completion callback for USART1 debug strings
 static void on_tx_complete(uint32_t bytes_sent)
 {
     (void)bytes_sent;
 }
 
-/* -----------------------------------------------------------------------
- * main
- * --------------------------------------------------------------------- */
+// main
 int main(void)
 {
-    /* Enable FPU */
-    SCB->CPACR |= ((3UL << (10*2)) | (3UL << (11*2)));
+    // Enable FPU (Floating Point Unit)
+    SCB->CPACR |= ((3UL << (10*2)) | (3UL << (11*2))); // Ensures that calculations don't occur slowly
 
-    /* --- USART1: debug output to screen via ST-Link --- */
+    // USART1: debug output to screen
     SerialInitialise(BAUD_115200, &USART1_PORT, on_tx_complete);
 
-    /* --- USART3: packet RX from Board 1 (PC11=RX), enable interrupt --- */
+    //  USART3: packet RX from Board 1 (PC11=RX), enable interrupt
     SerialInitialise(BAUD_115200, &USART3_PORT, 0);
     enable_interrupt(&USART3_PORT);
 
-    /* --- Discovery board: LEDs (no button needed on Board 2) --- */
+    // Discovery board: LEDs
     led_timer_init(30);
-    discovery_init(0);   /* NULL = no button callback */
+    discovery_init(0);   // NULL = no button callback
 
-    /* --- Servo: TIM3 hardware PWM on PA6 --- */
+    // Servo: TIM3 hardware PWM on PA6
     servo_init();
 
-    /* --- Startup message --- */
-    sendString((uint8_t *)"================================\r\n", &USART1_PORT);
-    sendString((uint8_t *)"MTRX2700 Ex5 -- Board 2\r\n",        &USART1_PORT);
+    // Startup message
+    sendString((uint8_t *)"Board 2\r\n",        &USART1_PORT);
     sendString((uint8_t *)"UART RX -> Servo + LEDs\r\n",        &USART1_PORT);
-    sendString((uint8_t *)"================================\r\n", &USART1_PORT);
 
-    /* --- Main loop: poll for incoming packets --- */
-    while (1)
-    {
-        receiveMsg(&USART3_PORT, on_message_received);
+   // interrupt version
+    enable_interrupt_part_f(&USART3_PORT);
+
+  //  while (1)
+  //  {
+       // /* CPU free to do other things */
+       // receiveMsgDoubleBuffer(&USART3_PORT, on_message_received);
+    //}
+
+    // Main loop: poll for incoming packets
+   while (1)
+   {
+       receiveMsg(&USART3_PORT, on_message_received);
     }
 }

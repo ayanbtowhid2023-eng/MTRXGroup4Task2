@@ -34,6 +34,8 @@ void one_shot_trigger(uint32_t delay_ms, OneShotCallback callback) // Two inputs
 {
     if (delay_ms < 1) delay_ms = 1;
 
+    // if (TIM4->CR1 & TIM_CR1_CEN) return;  // Reject if TIM4 is already running
+
     stored_callback = callback; // Saves callback function pointer so ISR can call it after the delay
 
     RCC->APB1ENR |= RCC_APB1ENR_TIM4EN; // Enables TIM4's clock
