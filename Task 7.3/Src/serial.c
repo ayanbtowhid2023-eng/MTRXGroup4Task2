@@ -3,20 +3,25 @@
  * @file    serial.c
  * @brief   Serial (UART) module for MTRX2700 C Lab - Exercise 3
  *
- * Based on a confirmed working USART1 interrupt implementation.
- * Added:
- *   - sendMsg()            : framed structured packet transmission
- *   - Packet state machine : interrupt-driven structured packet reception
- *   - SerialSetRxCallback(): register callback for received packets
+ * Two port instances:
+ *   USART1_PORT: USART1 on PC4(TX)/PC5(RX) - connected to ST-Link VCP
+ *                Use for debug strings visible in screen terminal.
+ *   USART3_PORT: USART3 on PC10(TX)/PC11(RX) - free GPIO pins
+ *                Use for sendMsg/receiveMsg loopback test (jumper PC10->PC11).
+ *
+ * Packet format:
+ *   [ START(0x02) | SIZE | TYPE | BODY... | STOP(0x03) | CHECKSUM ]
+ *   Checksum = XOR of START, SIZE, TYPE, all BODY bytes, STOP.
  ******************************************************************************
  */
 
 #include "serial.h"
 #include "stm32f303xc.h"
+#include <stddef.h>
 #include <string.h>
 
 /* =========================================================================
- * Serial port struct (hidden from users)
+ * Serial port struct
  * ====================================================================== */
 struct _SerialPort {
     USART_TypeDef   *UART;
@@ -31,73 +36,105 @@ struct _SerialPort {
     void (*completion_function)(uint32_t);
 };
 
-/* =========================================================================
- * USART1 port instance  (PC10=TX, PC11=RX, AF7)
- * ====================================================================== */
+/*
+ * USART1 on PC4(TX)/PC5(RX), AF7
+ * Connected to ST-Link VCP -> output appears in screen terminal.
+ *
+ * PC4: MODER bits [9:8]   = 0b10 -> 0x200
+ * PC5: MODER bits [11:10] = 0b10 -> 0x800
+ * Combined MODER = 0xA00
+ *
+ * PC4: AFR[0] bits [19:16] = 0x7 -> 0x70000
+ * PC5: AFR[0] bits [23:20] = 0x7 -> 0x700000
+ * Combined AFR[0] = 0x770000
+ */
 SerialPort USART1_PORT = {
     USART1,
     GPIOC,
     RCC_APB2ENR_USART1EN,
     0x00,
     RCC_AHBENR_GPIOCEN,
-    0xA00,      /* PC10+PC11 alternate function */
-    0xF00,      /* PC10+PC11 high speed         */
-    0x770000,   /* AF7 on PC10, PC11 (AFR[0])  */
+    0x00000A00,
+    0x00000F00,
+    0x00770000,
+    0x00000000,
+    0x00
+};
+
+/*
+ * USART3 on PC10(TX)/PC11(RX), AF7
+ * Free GPIO pins - use for packet loopback test (jumper PC10->PC11).
+ *
+ * PC10: MODER bits [21:20] = 0b10 -> 0x200000
+ * PC11: MODER bits [23:22] = 0b10 -> 0x800000
+ * Combined MODER = 0xA00000
+ *
+ * PC10: AFR[1] bits [11:8]  = 0x7 -> 0x700
+ * PC11: AFR[1] bits [15:12] = 0x7 -> 0x7000
+ * Combined AFR[1] = 0x7700
+ */
+SerialPort USART3_PORT = {
+    USART3,
+    GPIOC,
     0x00,
+    RCC_APB1ENR_USART3EN,
+    RCC_AHBENR_GPIOCEN,
+    0x00A00000,
+    0x00F00000,
+    0x00000000,
+    0x00007700,
     0x00
 };
 
 /* =========================================================================
- * TX double-buffer state (from working implementation)
+ * Circular RX buffer for USART3 (packet receive)
  * ====================================================================== */
-volatile uint8_t db_buffer1[DB_BUFFER_SIZE];
-volatile uint8_t db_buffer2[DB_BUFFER_SIZE];
-
-volatile uint8_t  *fill_buffer     = db_buffer1;
-volatile uint8_t  *transmit_buffer = db_buffer2;
-volatile uint32_t  fill_index      = 0;
-volatile uint32_t  transmit_index  = 0;
-volatile uint32_t  transmit_length = 0;
-volatile uint8_t   is_transmitting = 0;
+static volatile uint8_t s_rx_buffer[RX_BUFFER_SIZE];
+static volatile uint8_t s_write_pos = 0;
+static volatile uint8_t s_read_pos  = 0;
 
 /* =========================================================================
- * RX packet state machine
+ * IRQ Handlers
  * ====================================================================== */
-typedef enum {
-    RX_WAIT_START    = 0,
-    RX_WAIT_SIZE     = 1,
-    RX_WAIT_TYPE     = 2,
-    RX_READING_BODY  = 3,
-    RX_WAIT_CHECKSUM = 4,
-    RX_WAIT_STOP     = 5
-} RxState;
 
-static RxState   rx_state          = RX_WAIT_START;
-static uint8_t   rx_expected_size  = 0;
-static uint8_t   rx_msg_type       = 0;
-static uint8_t   rx_bytes_received = 0;
-static uint8_t   rx_checksum_calc  = 0;
-static uint8_t   rx_buffer[SERIAL_RX_BUFFER_SIZE];
-
-/* User-registered callback for completed packet reception */
-static SerialRxCompleteCallback rx_complete_callback = 0;
-
-/* start_flag and string receive (kept for compatibility) */
-uint8_t start_flag = 0;
-volatile uint8_t  input_received_flag = 0;
-volatile uint8_t  received_string[MAX_BUFFER_LENGTH];
-volatile uint32_t string_index = 0;
-
-/* =========================================================================
- * SerialSetRxCallback
- * ====================================================================== */
-void SerialSetRxCallback(SerialRxCompleteCallback callback)
+/* USART1: used for TX only (debug strings to screen) - no RX handler needed */
+void USART1_EXTI25_IRQHandler(void)
 {
-    rx_complete_callback = callback;
+    if (USART1->ISR & USART_ISR_ORE) {
+        USART1->ICR |= USART_ICR_ORECF;
+    }
+}
+
+/* USART3: stores received bytes into circular buffer */
+void USART3_EXTI28_IRQHandler(void)
+{
+    if (USART3->ISR & USART_ISR_ORE) {
+        USART3->ICR |= USART_ICR_ORECF;
+    }
+
+    if (USART3->ISR & USART_ISR_RXNE) {
+        uint8_t byte = (uint8_t)(USART3->RDR & 0xFF);
+        uint8_t next_write = (s_write_pos + 1) % RX_BUFFER_SIZE;
+        if (next_write != s_read_pos) {
+            s_rx_buffer[s_write_pos] = byte;
+            s_write_pos = next_write;
+        }
+    }
 }
 
 /* =========================================================================
- * SerialInitialise  (unchanged from working implementation)
+ * buffer_read
+ * ====================================================================== */
+static uint8_t buffer_read(uint8_t *byte)
+{
+    if (s_read_pos == s_write_pos) return 0;
+    *byte = s_rx_buffer[s_read_pos];
+    s_read_pos = (s_read_pos + 1) % RX_BUFFER_SIZE;
+    return 1;
+}
+
+/* =========================================================================
+ * SerialInitialise
  * ====================================================================== */
 void SerialInitialise(uint32_t baudRate,
                       SerialPort *serial_port,
@@ -107,250 +144,146 @@ void SerialInitialise(uint32_t baudRate,
 
     RCC->APB1ENR |= RCC_APB1ENR_PWREN;
     RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
-    RCC->AHBENR  |= RCC_AHBENR_GPIOCEN;
-    RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
     RCC->AHBENR  |= serial_port->MaskAHBENR;
 
-    serial_port->GPIO->MODER    = serial_port->SerialPinModeValue;
-    serial_port->GPIO->OSPEEDR  = serial_port->SerialPinSpeedValue;
+    serial_port->GPIO->MODER   |= serial_port->SerialPinModeValue;
+    serial_port->GPIO->OSPEEDR |= serial_port->SerialPinSpeedValue;
     serial_port->GPIO->AFR[0]  |= serial_port->SerialPinAlternatePinValueLow;
     serial_port->GPIO->AFR[1]  |= serial_port->SerialPinAlternatePinValueHigh;
-
-    serial_port->UART->CR1 |= USART_CR1_RXNEIE;  /* RX interrupt - always on */
-    /* NOTE: TXEIE is NOT enabled here - only enabled by SerialOutputStringDB
-     * when there is actually data to transmit. Enabling it here causes
-     * the IRQ to fire continuously since TXE is always set when idle. */
 
     RCC->APB1ENR |= serial_port->MaskAPB1ENR;
     RCC->APB2ENR |= serial_port->MaskAPB2ENR;
 
     uint16_t *baud_rate_config = (uint16_t*)&serial_port->UART->BRR;
     switch (baudRate) {
-        case BAUD_9600:
-        case BAUD_19200:
-        case BAUD_38400:
-        case BAUD_57600:
-        case BAUD_115200:
-        default:
-            *baud_rate_config = 0x46;  /* 115200 at 8MHz */
-            break;
+        case BAUD_9600:   *baud_rate_config = 0x341; break;
+        case BAUD_19200:  *baud_rate_config = 0x1A1; break;
+        case BAUD_38400:  *baud_rate_config = 0x0D0; break;
+        case BAUD_57600:  *baud_rate_config = 0x08B; break;
+        case BAUD_115200: *baud_rate_config = 0x046; break;
+        default:          *baud_rate_config = 0x046; break;
     }
 
     serial_port->UART->CR1 |= USART_CR1_TE | USART_CR1_RE | USART_CR1_UE;
 }
 
 /* =========================================================================
- * setupNVIC  (unchanged from working implementation)
+ * enable_interrupt - enables RXNE interrupt for USART3 (packet receive)
  * ====================================================================== */
-void setupNVIC(void)
+void enable_interrupt(SerialPort *serial_port)
 {
     __disable_irq();
-    NVIC_SetPriority(USART1_IRQn, 1);
-    NVIC_EnableIRQ(USART1_IRQn);
+    serial_port->UART->CR1 |= USART_CR1_RXNEIE;
+    NVIC_SetPriority(USART3_IRQn, 1);
+    NVIC_EnableIRQ(USART3_IRQn);
     __enable_irq();
 }
 
 /* =========================================================================
- * Helper functions
+ * TX functions (blocking poll)
  * ====================================================================== */
-int SerialInputAvailable(SerialPort *serial_port)
+void SerialOutputChar(uint8_t data, SerialPort *serial_port)
 {
-    return (serial_port->UART->ISR & USART_ISR_RXNE);
+    while ((serial_port->UART->ISR & USART_ISR_TXE) == 0) {}
+    serial_port->UART->TDR = data;
 }
 
-uint8_t SerialReadChar(SerialPort *serial_port)
+void SerialOutputString(uint8_t *pt, SerialPort *serial_port)
 {
-    return serial_port->UART->RDR;
+    uint32_t counter = 0;
+    while (*pt) {
+        SerialOutputChar(*pt, serial_port);
+        counter++;
+        pt++;
+    }
+    if (serial_port->completion_function != 0)
+        serial_port->completion_function(counter);
+}
+
+void sendString(uint8_t *pt, SerialPort *serial_port)
+{
+    SerialOutputString(pt, serial_port);
 }
 
 /* =========================================================================
- * SerialOutputStringDB  (unchanged from working implementation)
- *   Interrupt-driven TX with double buffering.
+ * calculateChecksum
  * ====================================================================== */
-void SerialOutputStringDB(uint8_t *pt, SerialPort *serial_port)
+uint8_t calculateChecksum(void *data, uint8_t size, uint8_t type)
 {
-    __disable_irq();
-
-    while (*pt && fill_index < (DB_BUFFER_SIZE - 1)) {
-        fill_buffer[fill_index++] = *pt++;
-    }
-    fill_buffer[fill_index] = '\0';
-
-    if (!is_transmitting) {
-        volatile uint8_t *temp = fill_buffer;
-        fill_buffer    = transmit_buffer;
-        transmit_buffer = temp;
-
-        transmit_length = fill_index;
-        fill_index      = 0;
-        transmit_index  = 0;
-
-        is_transmitting = 1;
-        serial_port->UART->CR1 |= USART_CR1_TXEIE;
-    }
-
-    __enable_irq();
-}
-
-/* =========================================================================
- * sendMsg  - frame and transmit a structured packet
- *
- * Packet: [START | size | msg_type | body... | checksum | STOP]
- * Uses polling TX so the packet goes out as a complete atomic unit,
- * separate from the double-buffered debug string path.
- * ====================================================================== */
-void sendMsg(void *data, uint8_t size, uint8_t msg_type, SerialPort *serial_port)
-{
-    uint8_t *bytes   = (uint8_t*)data;
+    uint8_t *body = (uint8_t*)data;
     uint8_t checksum = 0;
-
+    checksum ^= SERIAL_START_BYTE;
     checksum ^= size;
-    checksum ^= msg_type;
-
-    /* Wait for any in-progress TX to complete before sending packet */
-    while (is_transmitting) {}
-
-    /* Helper macro: poll TXE then write byte */
-    #define TX_BYTE(b) \
-        do { \
-            while ((serial_port->UART->ISR & USART_ISR_TXE) == 0) {} \
-            serial_port->UART->TDR = (b); \
-        } while(0)
-
-    TX_BYTE(SERIAL_START_BYTE);
-    TX_BYTE(size);
-    TX_BYTE(msg_type);
-
-    for (uint8_t i = 0; i < size; i++) {
-        checksum ^= bytes[i];
-        TX_BYTE(bytes[i]);
-    }
-
-    TX_BYTE(checksum);
-    TX_BYTE(SERIAL_STOP_BYTE);
-
-    /* Wait for last byte to finish transmitting */
-    while ((serial_port->UART->ISR & USART_ISR_TC) == 0) {}
-
-    #undef TX_BYTE
+    checksum ^= type;
+    for (uint8_t i = 0; i < size; i++) checksum ^= body[i];
+    checksum ^= SERIAL_STOP_BYTE;
+    return checksum;
 }
 
 /* =========================================================================
- * processRxByte - feed one received byte into the packet state machine
+ * sendMsg - transmit a framed packet
  * ====================================================================== */
-static void processRxByte(uint8_t byte)
+void sendMsg(void *data, uint8_t size, uint8_t type, SerialPort *serial_port)
 {
-    switch (rx_state) {
+    uint8_t *body    = (uint8_t*)data;
+    uint8_t checksum = calculateChecksum(data, size, type);
 
-        case RX_WAIT_START:
-            if (byte == SERIAL_START_BYTE) {
-                rx_state          = RX_WAIT_SIZE;
-                rx_checksum_calc  = 0;
-                rx_bytes_received = 0;
-            }
-            break;
-
-        case RX_WAIT_SIZE:
-            if (byte == 0 || byte > SERIAL_RX_BUFFER_SIZE) {
-                rx_state = RX_WAIT_START; /* invalid size - discard */
-            } else {
-                rx_expected_size   = byte;
-                rx_checksum_calc  ^= byte;
-                rx_state           = RX_WAIT_TYPE;
-            }
-            break;
-
-        case RX_WAIT_TYPE:
-            rx_msg_type        = byte;
-            rx_checksum_calc  ^= byte;
-            rx_state           = RX_READING_BODY;
-            break;
-
-        case RX_READING_BODY:
-            rx_buffer[rx_bytes_received] = byte;
-            rx_checksum_calc ^= byte;
-            rx_bytes_received++;
-            if (rx_bytes_received >= rx_expected_size) {
-                rx_state = RX_WAIT_CHECKSUM;
-            }
-            break;
-
-        case RX_WAIT_CHECKSUM:
-            if (byte == rx_checksum_calc) {
-                rx_state = RX_WAIT_STOP;
-            } else {
-                rx_state = RX_WAIT_START; /* bad checksum - discard */
-            }
-            break;
-
-        case RX_WAIT_STOP:
-            if (byte == SERIAL_STOP_BYTE) {
-                /* Complete valid packet - fire callback */
-                if (rx_complete_callback != 0) {
-                    rx_complete_callback(rx_buffer, rx_bytes_received);
-                }
-            }
-            rx_state = RX_WAIT_START;
-            break;
-
-        default:
-            rx_state = RX_WAIT_START;
-            break;
-    }
+    SerialOutputChar(SERIAL_START_BYTE, serial_port);
+    SerialOutputChar(size,              serial_port);
+    SerialOutputChar(type,              serial_port);
+    for (uint8_t i = 0; i < size; i++) SerialOutputChar(body[i], serial_port);
+    SerialOutputChar(SERIAL_STOP_BYTE,  serial_port);
+    SerialOutputChar(checksum,          serial_port);
 }
 
 /* =========================================================================
- * USART1_EXTI25_IRQHandler
- *   - RX: feeds bytes into the packet state machine
- *   - TX: double-buffer transmission (from working implementation)
+ * receiveMsg - parse a packet from the circular buffer
  * ====================================================================== */
-void USART1_EXTI25_IRQHandler(void)
+void receiveMsg(SerialPort *serial_port,
+                void (*callback)(uint8_t *data, uint8_t size, uint8_t type))
 {
-    /* Clear framing/overrun errors */
-    if ((USART1->ISR & USART_ISR_FE_Msk) || (USART1->ISR & USART_ISR_ORE_Msk)) {
-        USART1->ICR = USART_ICR_FECF | USART_ICR_ORECF;
-        rx_state = RX_WAIT_START; /* reset state machine on error */
+    uint8_t byte, body_size, msg_type;
+    uint8_t body[RX_BODY_SIZE];
+    uint8_t received_checksum, calculated_checksum;
+    uint32_t timeout;
+
+    if (callback == 0) return;
+
+    timeout = 0xFFFFFFF;
+    do {
+        if (buffer_read(&byte) && byte == SERIAL_START_BYTE) break;
+        if (--timeout == 0) return;
+    } while (1);
+
+    timeout = 0xFFFFFFF;
+    while (!buffer_read(&body_size)) { if (--timeout == 0) return; }
+    if (body_size == 0 || body_size > RX_BODY_SIZE) return;
+
+    timeout = 0xFFFFFFF;
+    while (!buffer_read(&msg_type)) { if (--timeout == 0) return; }
+
+    for (uint8_t i = 0; i < body_size; i++) {
+        timeout = 0xFFFFFFF;
+        while (!buffer_read(&byte)) { if (--timeout == 0) return; }
+        body[i] = byte;
+    }
+
+    timeout = 0xFFFFFFF;
+    while (!buffer_read(&byte)) { if (--timeout == 0) return; }
+    if (byte != SERIAL_STOP_BYTE) {
+        sendString((uint8_t*)"ERR: no stop byte\r\n", &USART1_PORT);
         return;
     }
 
-    /* RX: feed each incoming byte into the packet state machine */
-    if (USART1->ISR & USART_ISR_RXNE) {
-        while (SerialInputAvailable(&USART1_PORT)) {
-            uint8_t c = SerialReadChar(&USART1_PORT);
-            processRxByte(c);
-        }
+    timeout = 0xFFFFFFF;
+    while (!buffer_read(&received_checksum)) { if (--timeout == 0) return; }
+    calculated_checksum = calculateChecksum(body, body_size, msg_type);
+    if (calculated_checksum != received_checksum) {
+        sendString((uint8_t*)"ERR: bad checksum\r\n", &USART1_PORT);
+        return;
     }
 
-    /* TX: double-buffer transmission (unchanged from working code) */
-    if (is_transmitting && transmit_length == 0) {
-        USART1->CR1 &= ~USART_CR1_TXEIE;
-        is_transmitting = 0;
-    }
-
-    if ((USART1->ISR & USART_ISR_TXE) && is_transmitting) {
-        if (transmit_index < transmit_length) {
-            USART1->TDR = transmit_buffer[transmit_index++];
-        } else {
-            USART1->CR1 &= ~USART_CR1_TXEIE;
-
-            if (USART1_PORT.completion_function) {
-                USART1_PORT.completion_function(transmit_length);
-            }
-
-            is_transmitting = 0;
-
-            if (fill_index > 0) {
-                volatile uint8_t *temp = fill_buffer;
-                fill_buffer     = transmit_buffer;
-                transmit_buffer  = temp;
-
-                transmit_length = fill_index;
-                fill_index      = 0;
-                transmit_index  = 0;
-
-                is_transmitting = 1;
-                USART1->CR1 |= USART_CR1_TXEIE;
-            }
-        }
-    }
+    callback(body, body_size, msg_type);
 }
+
+uint8_t SerialTxBusy(void) { return 0; }

@@ -1,0 +1,39 @@
+10:31:50 **** Build of configuration Debug for project Test_7.3 ****
+make -j13 all 
+arm-none-eabi-gcc -mcpu=cortex-m4 -g3 -DDEBUG -c -x assembler-with-cpp -MMD -MP -MF"Startup/startup_stm32f303vctx.d" -MT"Startup/startup_stm32f303vctx.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Startup/startup_stm32f303vctx.o" "../Startup/startup_stm32f303vctx.s"
+arm-none-eabi-gcc "../Src/demo_uart.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DSTM32F303VCTx -DSTM32 -DSTM32F3 -DSTM32F3DISCOVERY -c -I../Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Src/demo_uart.d" -MT"Src/demo_uart.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Src/demo_uart.o"
+arm-none-eabi-gcc "../Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DSTM32F303VCTx -DSTM32 -DSTM32F3 -DSTM32F3DISCOVERY -c -I../Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Src/main.d" -MT"Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Src/main.o"
+arm-none-eabi-gcc "../Src/serial.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DSTM32F303VCTx -DSTM32 -DSTM32F3 -DSTM32F3DISCOVERY -c -I../Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Src/serial.d" -MT"Src/serial.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Src/serial.o"
+arm-none-eabi-gcc "../Src/serial_comms.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DSTM32F303VCTx -DSTM32 -DSTM32F3 -DSTM32F3DISCOVERY -c -I../Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Src/serial_comms.d" -MT"Src/serial_comms.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Src/serial_comms.o"
+arm-none-eabi-gcc "../Src/syscalls.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DSTM32F303VCTx -DSTM32 -DSTM32F3 -DSTM32F3DISCOVERY -c -I../Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Src/syscalls.d" -MT"Src/syscalls.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Src/syscalls.o"
+arm-none-eabi-gcc "../Src/sysmem.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DSTM32F303VCTx -DSTM32 -DSTM32F3 -DSTM32F3DISCOVERY -c -I../Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Src/sysmem.d" -MT"Src/sysmem.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Src/sysmem.o"
+In file included from ../Src/main.c:21:
+../Inc/stm32f303xc.h:151:10: fatal error: core_cm4.h: No such file or directory
+  151 | #include "core_cm4.h"            /* Cortex-M4 processor and core peripherals */
+      |          ^~~~~~~~~~~~
+compilation terminated.
+../Src/demo_uart.c: In function 'Demo_RunPartA':
+../Src/demo_uart.c:21:14: warning: unused variable 'received' [-Wunused-variable]
+   21 |     uint16_t received;
+      |              ^~~~~~~~
+../Src/demo_uart.c:20:13: warning: unused variable 'rx_buffer' [-Wunused-variable]
+   20 |     uint8_t rx_buffer[32];
+      |             ^~~~~~~~~
+In file included from ../Src/serial_comms.c:2:
+../Inc/stm32f303xc.h:151:10: fatal error: core_cm4.h: No such file or directory
+  151 | #include "core_cm4.h"            /* Cortex-M4 processor and core peripherals */
+      |          ^~~~~~~~~~~~
+compilation terminated.
+In file included from ../Src/serial.c:6:
+../Inc/stm32f303xc.h:151:10: fatal error: core_cm4.h: No such file or directory
+  151 | #include "core_cm4.h"            /* Cortex-M4 processor and core peripherals */
+      |          ^~~~~~~~~~~~
+compilation terminated.
+make: *** [Src/subdir.mk:34: Src/main.o] Error 1
+make: *** Waiting for unfinished jobs....
+make: *** [Src/subdir.mk:34: Src/serial_comms.o] Error 1
+make: *** [Src/subdir.mk:34: Src/serial.o] Error 1
+"make -j13 all" terminated with exit code 2. Build might be incomplete.
+
+10:31:50 Build Failed. 7 errors, 2 warnings. (took 136ms)
+

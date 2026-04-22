@@ -3,11 +3,11 @@
  * @file    serial.h
  * @brief   Serial (UART) module for MTRX2700 C Lab - Exercise 3
  *
- * Built on a confirmed working USART1 interrupt foundation.
+ * USART1_PORT: USART1 on PC4(TX)/PC5(RX) -> ST-Link VCP -> screen terminal
+ * USART3_PORT: USART3 on PC10(TX)/PC11(RX) -> loopback test (jumper PC10->PC11)
  *
- * Packet format for sendMsg / receiveMsg:
- *   [ START(0xAA) | SIZE(1B) | TYPE(1B) | BODY(SIZE B) | CHECKSUM(1B) | STOP(0x55) ]
- *   Checksum = XOR of SIZE, TYPE, and all BODY bytes.
+ * Packet format:
+ *   [ START(0x02) | SIZE | TYPE | BODY... | STOP(0x03) | CHECKSUM ]
  ******************************************************************************
  */
 
@@ -16,22 +16,19 @@
 
 #include <stdint.h>
 
-/* -------------------------------------------------------------------------
- * Buffer sizes
- * ---------------------------------------------------------------------- */
-#define MAX_BUFFER_LENGTH  128   /* max raw string receive buffer           */
-#define DB_BUFFER_SIZE     256   /* double-buffer TX size                   */
-#define SERIAL_RX_BUFFER_SIZE 128 /* max packet body size                  */
+#define MAX_BUFFER_LENGTH  128
+#define RX_BUFFER_SIZE     128
+#define RX_BODY_SIZE        64
 
-/* -------------------------------------------------------------------------
- * Packet framing constants
- * ---------------------------------------------------------------------- */
-#define SERIAL_START_BYTE  0xAA
-#define SERIAL_STOP_BYTE   0x55
+#define SERIAL_START_BYTE  0x02
+#define SERIAL_STOP_BYTE   0x03
 
-/* -------------------------------------------------------------------------
- * Baud rates
- * ---------------------------------------------------------------------- */
+struct _SerialPort;
+typedef struct _SerialPort SerialPort;
+
+extern SerialPort USART1_PORT;  /* debug output -> screen */
+extern SerialPort USART3_PORT;  /* packet loopback test   */
+
 enum {
     BAUD_9600,
     BAUD_19200,
@@ -40,90 +37,23 @@ enum {
     BAUD_115200
 };
 
-/* -------------------------------------------------------------------------
- * Opaque serial port handle
- * ---------------------------------------------------------------------- */
-struct _SerialPort;
-typedef struct _SerialPort SerialPort;
-
-extern SerialPort USART1_PORT;
-extern uint8_t start_flag;
-
-/* -------------------------------------------------------------------------
- * Callback types
- * ---------------------------------------------------------------------- */
-
-/**
- * @brief Called after SerialOutputStringDB completes transmitting a buffer.
- * @param bytes_sent  Number of bytes transmitted.
- */
-typedef void (*SerialTxCompleteCallback)(uint32_t bytes_sent);
-
-/**
- * @brief Called when a complete, checksum-valid packet has been received.
- * @param data       Pointer to the received body bytes.
- * @param num_bytes  Number of body bytes.
- *
- * IMPORTANT: Copy data out before returning - buffer may be overwritten.
- */
-typedef void (*SerialRxCompleteCallback)(uint8_t *data, uint32_t num_bytes);
-
-/* -------------------------------------------------------------------------
- * Functions
- * ---------------------------------------------------------------------- */
-
-/**
- * @brief Initialise USART1 at the given baud rate.
- * @param baudRate           One of the BAUD_* constants.
- * @param serial_port        &USART1_PORT
- * @param completion_function Called after each TX buffer completes. May be NULL.
- */
 void SerialInitialise(uint32_t baudRate,
                       SerialPort *serial_port,
                       void (*completion_function)(uint32_t));
 
-/**
- * @brief Enable the USART1 NVIC interrupt.
- *        Must be called from main() after SerialInitialise.
- */
-void setupNVIC(void);
+/* Call after SerialInitialise for USART3_PORT to enable RX interrupt */
+void enable_interrupt(SerialPort *serial_port);
 
-/**
- * @brief Register a callback to be called when a complete packet is received.
- * @param callback  Function to call on packet receipt. May be NULL.
- */
-void SerialSetRxCallback(SerialRxCompleteCallback callback);
+void SerialOutputChar(uint8_t data, SerialPort *serial_port);
+void SerialOutputString(uint8_t *pt, SerialPort *serial_port);
+void sendString(uint8_t *pt, SerialPort *serial_port);
 
-/**
- * @brief Transmit a null-terminated debug string (interrupt-driven, double-buffered).
- * @param pt           Pointer to null-terminated string.
- * @param serial_port  &USART1_PORT
- */
-void SerialOutputStringDB(uint8_t *pt, SerialPort *serial_port);
+void sendMsg(void *data, uint8_t size, uint8_t type, SerialPort *serial_port);
 
-/**
- * @brief Package and transmit a structured message as a framed packet.
- *
- * Packet: [START | size | msg_type | body... | checksum | STOP]
- *
- * @param data         Pointer to structure/data to send.
- * @param size         Number of bytes (use sizeof).
- * @param msg_type     Application-defined message type identifier.
- * @param serial_port  &USART1_PORT
- */
-void sendMsg(void *data, uint8_t size, uint8_t msg_type, SerialPort *serial_port);
+void receiveMsg(SerialPort *serial_port,
+                void (*callback)(uint8_t *data, uint8_t size, uint8_t type));
 
-/**
- * @brief USART1 interrupt handler - defined in serial.c.
- *        Handles both TX (double-buffer) and RX (packet state machine).
- */
-void USART1_EXTI25_IRQHandler(void);
-
-/* Helper functions */
-int     SerialInputAvailable(SerialPort *serial_port);
-uint8_t SerialReadChar(SerialPort *serial_port);
-
-/* Exposed so main can wait for TX to complete before sending a packet */
-extern volatile uint8_t is_transmitting;
+uint8_t calculateChecksum(void *data, uint8_t size, uint8_t type);
+uint8_t SerialTxBusy(void);
 
 #endif /* SERIAL_PORT_HEADER */

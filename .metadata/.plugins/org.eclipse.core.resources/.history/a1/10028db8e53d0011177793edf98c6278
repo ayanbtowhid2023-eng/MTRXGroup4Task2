@@ -1,0 +1,112 @@
+/**
+ ******************************************************************************
+ * @file    main.c
+ * @brief   Exercise 3 - Serial Interface loopback test
+ *
+ * Hardware setup:
+ *   - USB cable from board to Mac
+ *   - Jumper wire from PC10 (TX) to PC11 (RX) for loopback
+ *
+ * View output: screen /dev/tty.usbmodem103 115200
+ *
+ * Expected output:
+ *   MTRX2700 Exercise 3 - Serial Module
+ *   Sending SensorData packet...
+ *   Loopback test PASSED!
+ *     x=100 y=200 z=300 ts=12345
+ ******************************************************************************
+ */
+
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include "stm32f303xc.h"
+#include "serial.h"
+
+#define MSG_TYPE_SENSOR  0x01
+#define MSG_TYPE_COMMAND 0x02
+
+/* =========================================================================
+ * Example message structures
+ * ====================================================================== */
+typedef struct {
+    uint16_t x;
+    uint16_t y;
+    uint16_t z;
+    uint32_t timestamp_ms;
+} SensorData;
+
+/* =========================================================================
+ * Known TX values for verification
+ * ====================================================================== */
+static const SensorData TX_SENSOR_DATA = {
+    .x            = 100,
+    .y            = 200,
+    .z            = 300,
+    .timestamp_ms = 12345
+};
+
+/* =========================================================================
+ * TX completion callback
+ * ====================================================================== */
+void finished_transmission(uint32_t bytes_sent)
+{
+    (void)bytes_sent;
+}
+
+/* =========================================================================
+ * RX callback - called by receiveMsg when a valid packet is received
+ * ====================================================================== */
+static char debug_buf[64];
+
+void on_message_received(uint8_t *data, uint8_t size, uint8_t type)
+{
+    if (type == MSG_TYPE_SENSOR && size == sizeof(SensorData)) {
+        SensorData received;
+        memcpy(&received, data, sizeof(SensorData));
+
+        if (received.x            == TX_SENSOR_DATA.x &&
+            received.y            == TX_SENSOR_DATA.y &&
+            received.z            == TX_SENSOR_DATA.z &&
+            received.timestamp_ms == TX_SENSOR_DATA.timestamp_ms)
+        {
+            sendString((uint8_t*)"Loopback test PASSED!\r\n", &USART1_PORT);
+            sprintf(debug_buf, "  x=%d y=%d z=%d ts=%lu\r\n",
+                    received.x, received.y, received.z, received.timestamp_ms);
+            sendString((uint8_t*)debug_buf, &USART1_PORT);
+        } else {
+            sendString((uint8_t*)"Loopback test FAILED - data mismatch!\r\n", &USART1_PORT);
+        }
+    } else {
+        sendString((uint8_t*)"Received unknown message type\r\n", &USART1_PORT);
+    }
+}
+
+/* =========================================================================
+ * main
+ * ====================================================================== */
+int main(void)
+{
+    /* Initialise USART1 */
+    SerialInitialise(BAUD_115200, &USART1_PORT, &finished_transmission);
+
+    /* Enable RXNE interrupt (7.3e) */
+    enable_interrupt(&USART1_PORT);
+
+    /* 7.3b: debug strings */
+    sendString((uint8_t*)"================================\r\n", &USART1_PORT);
+    sendString((uint8_t*)"MTRX2700 Exercise 3 - Serial Module\r\n", &USART1_PORT);
+    sendString((uint8_t*)"Loopback: PC10 jumpered to PC11\r\n", &USART1_PORT);
+    sendString((uint8_t*)"================================\r\n", &USART1_PORT);
+
+    /* 7.3c + 7.3a: send structured packet - loops back via jumper wire */
+    sendString((uint8_t*)"Sending SensorData packet...\r\n", &USART1_PORT);
+    sendMsg((void*)&TX_SENSOR_DATA, sizeof(TX_SENSOR_DATA),
+            MSG_TYPE_SENSOR, &USART1_PORT);
+
+    /* 7.3d + 7.3e: main loop calls receiveMsg which reads from
+     * the circular buffer filled by the RXNE interrupt */
+    while (1) {
+        receiveMsg(&USART1_PORT, &on_message_received);
+    }
+}

@@ -1,0 +1,227 @@
+/*
+ * serial.h
+ * MTRX2700 Lab 2 — Exercise 3: Serial Interface
+ *
+ * Public interface for the serial communication module (serial.c).
+ * Provides bare-metal UART send/receive functions for the STM32F303xC,
+ * including polling, interrupt-driven RX, and interrupt-driven TX with
+ * a double-buffer scheme (Part F).
+ *
+ * Packet format (used by sendMsg / receiveMsg):
+ *   [ START | SIZE | TYPE | BODY[SIZE] | STOP | CHECKSUM ]
+ *   Checksum = XOR of all preceding bytes.
+ */
+
+#ifndef SERIAL_H
+#define SERIAL_H
+
+#include <stdint.h>
+#include <stddef.h>
+#include "stm32f303xc.h"
+
+/* -----------------------------------------------------------------------
+ * Baud rate tokens — passed to SerialInitialise()
+ * Values are register presets for an 8 MHz system clock.
+ * ----------------------------------------------------------------------- */
+#define BAUD_9600   9600
+#define BAUD_19200  19200
+#define BAUD_38400  38400
+#define BAUD_57600  57600
+#define BAUD_115200 115200
+
+/* -----------------------------------------------------------------------
+ * SerialPort — opaque handle for a UART peripheral + its GPIO pins.
+ * The struct definition lives in serial.c; external code uses a pointer.
+ * One pre-initialised instance is provided below (USART1_PORT).
+ * ----------------------------------------------------------------------- */
+typedef struct _SerialPort SerialPort;
+
+/* Pre-configured port: USART1 on GPIOC (PC4 TX / PC5 RX).
+ * Defined in serial.c — declare extern so other translation units can use it. */
+extern SerialPort USART1_PORT;
+
+/* -----------------------------------------------------------------------
+ * Initialisation
+ * ----------------------------------------------------------------------- */
+
+/*
+ * SerialInitialise
+ * Configure clocks, GPIO alternate function and baud rate for a port.
+ *
+ * baudRate            : one of the BAUD_* tokens above
+ * serial_port         : pointer to a SerialPort instance (e.g. &USART1_PORT)
+ * completion_function : optional TX-complete callback — called with the number
+ *                       of bytes sent.  Pass NULL if not needed.
+ */
+void SerialInitialise(uint32_t baudRate,
+                      SerialPort *serial_port,
+                      void (*completion_function)(uint32_t));
+
+/* -----------------------------------------------------------------------
+ * Interrupt enable helpers
+ * ----------------------------------------------------------------------- */
+
+/*
+ * enable_interrupt (Part E)
+ * Enable the RXNE interrupt on the given port so that incoming bytes are
+ * stored in an internal circular buffer and read by receiveMsg().
+ */
+void enable_interrupt(SerialPort *serial_port);
+
+/*
+ * enable_interrupt_part_f (Part F)
+ * Like enable_interrupt() but also arms the TX-empty interrupt path and
+ * switches the ISR to the double-buffer state machine for zero-copy receive.
+ */
+void enable_interrupt_part_f(SerialPort *serial_port);
+
+/* -----------------------------------------------------------------------
+ * Basic TX helpers
+ * ----------------------------------------------------------------------- */
+
+/*
+ * SerialOutputChar
+ * Blocking: spin until the TDR is empty, then write one byte.
+ */
+void SerialOutputChar(uint8_t data, SerialPort *serial_port);
+
+/*
+ * SerialOutputString
+ * Blocking: transmit a null-terminated string one byte at a time,
+ * then call the port's completion_function (if set).
+ */
+void SerialOutputString(uint8_t *pt, SerialPort *serial_port);
+
+/* -----------------------------------------------------------------------
+ * Basic RX helpers
+ * ----------------------------------------------------------------------- */
+
+/*
+ * SerialReceiveByte
+ * Blocking: spin until RXNE, then return the received byte.
+ * Uses hardware register directly — not the circular buffer.
+ */
+uint8_t SerialReceiveByte(SerialPort *serial_port);
+
+/*
+ * SerialReceiveString
+ * Blocking: receive exactly `length` bytes into `buffer` via SerialReceiveByte.
+ * No termination character is expected; caller must know the exact length.
+ */
+void SerialReceiveString(uint8_t *buffer, size_t length, SerialPort *serial_port);
+
+/* -----------------------------------------------------------------------
+ * Part B — debug string output
+ * ----------------------------------------------------------------------- */
+
+/*
+ * sendString
+ * Transmit a null-terminated string.  Identical to SerialOutputString but
+ * named to match the lab's Part B naming convention.
+ */
+void sendString(uint8_t *pt, SerialPort *serial_port);
+
+/* -----------------------------------------------------------------------
+ * Part C — structured message TX (polling)
+ * ----------------------------------------------------------------------- */
+
+/*
+ * calculateChecksum
+ * XOR of: START_BYTE ^ size ^ type ^ body[0..size-1] ^ STOP_BYTE.
+ * Used internally by sendMsg / receiveMsg; exposed here for testing.
+ */
+uint8_t calculateChecksum(void *data, uint8_t size, uint8_t type);
+
+/*
+ * sendMsg
+ * Assemble and transmit a framed packet:
+ *   [ START | size | type | body[0..size-1] | STOP | checksum ]
+ *
+ * data        : pointer to any structure or byte array
+ * size        : number of body bytes (use sizeof for structures)
+ * type        : application-defined message type identifier
+ * serial_port : destination port
+ */
+void sendMsg(void *data, uint8_t size, uint8_t type, SerialPort *serial_port);
+
+/* -----------------------------------------------------------------------
+ * Part D — structured message RX (polling)
+ * ----------------------------------------------------------------------- */
+
+/*
+ * receiveMsgPolling
+ * Blocking poll: reads bytes directly from hardware registers until a
+ * complete, valid packet is received, then calls `callback`.
+ *
+ * callback(data, size, type)
+ *   data : pointer to the received body (stack-allocated inside the function)
+ *   size : number of body bytes
+ *   type : message type field from the packet header
+ *
+ * Returns without calling the callback if the stop byte is missing or the
+ * checksum does not match.
+ */
+void receiveMsgPolling(SerialPort *serial_port,
+                       void (*callback)(uint8_t *data, uint8_t size, uint8_t type));
+
+/* -----------------------------------------------------------------------
+ * Part E — structured message RX (interrupt-driven circular buffer)
+ * ----------------------------------------------------------------------- */
+
+/*
+ * receiveMsg
+ * Non-blocking read from the ISR-filled circular buffer.
+ * Call repeatedly from main (or a loop) after enable_interrupt().
+ * When a complete, valid packet is available the callback is fired.
+ *
+ * Exits immediately if no START byte is waiting in the buffer.
+ */
+void receiveMsg(SerialPort *serial_port,
+                void (*callback)(uint8_t *data, uint8_t size, uint8_t type));
+
+/* -----------------------------------------------------------------------
+ * Part F — interrupt TX + double-buffer RX
+ * ----------------------------------------------------------------------- */
+
+/*
+ * sendStringIT
+ * Non-blocking: copies `pt` into the TX buffer and arms the TXE interrupt.
+ * Returns 1 on success, 0 if the transmitter is still busy or the string is
+ * too long for the internal buffer.
+ * Call SerialTxBusy() to poll for completion before sending again.
+ */
+uint8_t sendStringIT(uint8_t *pt, SerialPort *serial_port);
+
+/*
+ * sendMsgIT
+ * Non-blocking: assemble a framed packet into the TX buffer and arm the
+ * TXE interrupt.  Returns 1 on success, 0 if busy or body too large.
+ */
+uint8_t sendMsgIT(void *data, uint8_t size, uint8_t type, SerialPort *serial_port);
+
+/*
+ * receiveMsgDoubleBuffer
+ * Non-blocking read using the Part F double-buffer scheme.
+ * The ISR writes into one buffer while this function reads from the other.
+ * Call repeatedly from main after enable_interrupt_part_f().
+ * Fires `callback` when a complete, checksummed packet is available.
+ */
+void receiveMsgDoubleBuffer(SerialPort *serial_port,
+                            void (*callback)(uint8_t *data, uint8_t size, uint8_t type));
+
+/*
+ * SerialTxBusy
+ * Returns 1 if the interrupt-driven transmitter is currently sending, 0 otherwise.
+ * Use to guard sendStringIT / sendMsgIT calls against overwriting the TX buffer.
+ */
+uint8_t SerialTxBusy(void);
+
+/*
+ * SerialRxDroppedMessage
+ * Returns 1 if the ISR discarded a completed message because the application
+ * had not yet consumed the previous one via receiveMsgDoubleBuffer().
+ * Read this flag periodically to detect buffer overrun conditions.
+ */
+uint8_t SerialRxDroppedMessage(void);
+
+#endif /* SERIAL_H */
