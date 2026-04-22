@@ -1,10 +1,10 @@
 # MTRX2700 Project 2
 
 ## Group Members
-Ayan Towhid
-Ben Innes
-Noah Mattani
-Remy Cameron
+- Ayan Towhid
+- Ben Innes
+- Noah Mattani
+- Remy Cameron
 
 ## Roles and Responbilities
 Ayan:
