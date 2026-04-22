@@ -1,7 +1,0 @@
-../Src/demo_uart.c:7:13:delay_loop	2
-../Src/demo_uart.c:12:13:on_message_received	1
-../Src/demo_uart.c:17:6:Demo_RunPartA	1
-../Src/demo_uart.c:35:6:Demo_RunPartB	1
-../Src/demo_uart.c:43:6:Demo_RunPartC	1
-../Src/demo_uart.c:64:6:Demo_RunPartD	1
-../Src/demo_uart.c:74:6:Demo_RunPartE	2

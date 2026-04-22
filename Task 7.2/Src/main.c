@@ -10,7 +10,7 @@
               timer_get/set_period_ms() changes blink to 100ms.
 
   TASK_C_DEMO: Servo sweeps CW -> centre -> CCW repeatedly on PA6.
-              servo_init() calls timer_init(20, on_period) internally.
+              servo_init() configures TIM3 hardware PWM directly.
 
   TASK_D_DEMO: LD3 turns on exactly once after 1000ms via
                one_shot_trigger(). Proves it fires once and stops.
@@ -22,7 +22,7 @@
  */
 
 #include <stdint.h>
-#include "registers.h"
+#include "stm32f303xc.h"
 #include "gpio.h"
 #include "timer.h"
 #include "servo.h"
@@ -42,11 +42,11 @@ static void on_timer_a(void) // Call-back function for toggling LED's
 {
     static int state = 0;
     if (state == 0) {
-        gpio_write(GPIOE, 8, GPIO_PIN_HIGH); // Turns LED off
+        gpio_write(GPIOE, 8, GPIO_PIN_HIGH); // Turns LED on
         state = 1;
     } else {
-        gpio_write(GPIOE, 8, GPIO_PIN_LOW);
-        state = 0; // turns the LED off
+        gpio_write(GPIOE, 8, GPIO_PIN_LOW);  // Turns the LED off
+        state = 0;
     }
 }
 
@@ -60,7 +60,7 @@ int main(void)
 
     // TASK B: un-comment these three lines to demo get/set.
     // uint32_t current = timer_get_period_ms();  // Gets the current period
-    // (void)current; // Removes memory
+    // (void)current; // Removes memory warning
     // timer_set_period_ms(100); // Sets the new period
 
     while (1) {}
@@ -71,8 +71,9 @@ int main(void)
 
 int main(void)
 {
-    /* TASK C: servo_init() calls timer_init(20, on_period) internally.
-     * Note to tutor: timer_get/set_period_ms() used inside servo module */
+    /* TASK C: servo_init() configures TIM3 hardware PWM on PA6 (AF2).
+     * servo_set_position() writes directly to TIM3->CCR1.
+     * servo_get_position_us() is the only way to read back pulse width. */
     servo_init();
 
     while (1)

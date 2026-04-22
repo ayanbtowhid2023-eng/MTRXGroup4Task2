@@ -16,6 +16,7 @@
 #define TIMER_H
 
 #include <stdint.h>
+#include "stm32f303xc.h"
 
 /** Callback type invoked on each timer period expiry (from ISR). */
 typedef void (*TimerCallback)(void);

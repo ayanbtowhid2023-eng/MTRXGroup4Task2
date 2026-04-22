@@ -11,14 +11,14 @@
  *
  * Connect servo signal wire to PA6 on the Discovery board.
  *
- * Depends on: timer.c, registers.h
+ * Depends on: timer.c, stm32f303xc.h
  */
 
 #ifndef SERVO_H
 #define SERVO_H
 
 #include <stdint.h>
-#include "registers.h"
+#include "stm32f303xc.h"
 
 /** Pulse width limits in microseconds -- as per assignment specification */
 #define SERVO_POS_MIN_US    1000U   /* full clockwise      */

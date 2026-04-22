@@ -17,6 +17,7 @@
 #define ONE_SHOT_H
 
 #include <stdint.h>
+#include "stm32f303xc.h"
 
 /** Callback type invoked when the one-shot delay elapses. */
 typedef void (*OneShotCallback)(void);
