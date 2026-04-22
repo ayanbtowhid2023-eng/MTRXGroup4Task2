@@ -27,7 +27,7 @@
 #define MSG_TYPE_SENSOR  0x01
 
 /* Set to 'e' for tasks a-e, 'f' for task f */
-#define DEMO_PART 'e'
+#define DEMO_PART 'f'
 
 typedef struct {
     uint16_t x;

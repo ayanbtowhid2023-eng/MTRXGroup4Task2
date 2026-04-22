@@ -1,4 +1,4 @@
-11:03:37 **** Build of configuration Debug for project Task 7.3 ****
+06:16:47 **** Build of configuration Debug for project Task 7.3 ****
 make -j13 all 
 arm-none-eabi-gcc -mcpu=cortex-m4 -g3 -DDEBUG -c -x assembler-with-cpp -MMD -MP -MF"Startup/startup_stm32f303vctx.d" -MT"Startup/startup_stm32f303vctx.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Startup/startup_stm32f303vctx.o" "../Startup/startup_stm32f303vctx.s"
 arm-none-eabi-gcc "../Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DSTM32F303VCTx -DSTM32 -DSTM32F3 -DSTM32F3DISCOVERY -c -I../Drivers/CMSIS/Device/ST/STM32F3xx/Include -I../Drivers/CMSIS/Include -I../Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Src/main.d" -MT"Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Src/main.o"
@@ -11,15 +11,15 @@ Finished building target: Task 7.3.elf
 arm-none-eabi-size  Task\ 7.3.elf 
 arm-none-eabi-objdump -h -S Task\ 7.3.elf  > "Task 7.3.list"
    text	   data	    bss	    dec	    hex	filename
-   5560	    160	   2096	   7816	   1e88	Task 7.3.elf
+   6136	    164	   2372	   8672	   21e0	Task 7.3.elf
 Finished building: default.size.stdout
  
 Finished building: Task 7.3.list
  
-11:03:41 **** Incremental Build of configuration Debug for project Task 7.3 ****
+06:19:12 **** Incremental Build of configuration Debug for project Task 7.3 ****
 make -j13 all 
 arm-none-eabi-size  Task\ 7.3.elf 
    text	   data	    bss	    dec	    hex	filename
-   5560	    160	   2096	   7816	   1e88	Task 7.3.elf
+   6136	    164	   2372	   8672	   21e0	Task 7.3.elf
 Finished building: default.size.stdout
  

@@ -43,7 +43,7 @@ int main(void) {
     for (volatile int i=0;i<5000000;i++);
     uart_send_string("READY\r\n");
 
-    char buf[128];
+    char buf[160];
 
     while (1) {
         compass_read();
@@ -62,12 +62,12 @@ int main(void) {
             GPIOE->ODR ^= (1U<<8);
 
             snprintf(buf, sizeof(buf),
-                "MagX:%d MagY:%d MagZ:%d Heading:%d "
-                "Roll:%d Pitch:%d "
-                "GyroX:%d GyroY:%d GyroZ:%d dps\r\n",
-                m->raw_x, m->raw_y, m->raw_z, (int)m->heading_deg,
-                (int)a->roll_deg, (int)a->pitch_deg,
-                (int)g->dps_x, (int)g->dps_y, (int)g->dps_z);
+                "MagX:%d MagY:%d MagZ:%d Heading:%.1f "
+                "Roll:%.1f Pitch:%.1f "
+                "GyroX:%.2f GyroY:%.2f GyroZ:%.2f dps\r\n",
+                m->raw_x, m->raw_y, m->raw_z, m->heading_deg,
+                a->roll_deg, a->pitch_deg,
+                g->dps_x, g->dps_y, g->dps_z);
             uart_send_string(buf);
         }
 
