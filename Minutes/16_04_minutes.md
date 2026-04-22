@@ -1,4 +1,4 @@
-# MTRX Group 4 — Meeting Minutes
+# MTRX Group 4 - Meeting Minutes
 
 ## Meeting Details
 **Date:** 20/04/2026  
