@@ -666,6 +666,7 @@ Open two terminals, one for each board.
 4. `discovery_init(on_button_press)` - initialises all 8 LEDs and button interrupt on PA0
 5. `compass_init()` - brings up I2C1 on PB6/PB7, enables FPU, configures magnetometer
 6. Main loop: calls `compass_read()` every ~100ms, packages heading and button flag into `MagMessage_t`, transmits via `sendMsg()` over USART3
+
 **Order of operations - Board 2 main.c:**
 1. `SCB->CPACR` - enables FPU before any float operations
 2. `SerialInitialise(BAUD_115200, &USART1_PORT, on_tx_complete)` - sets up debug output to screen via ST-Link
